@@ -1,4 +1,4 @@
-# AutoML Streamlit Classifier 🤖📊
+# AutoML Streamlit Classifier
 
 **An intelligent, end-to-end Machine Learning pipeline powered by Streamlit and Google Gemini AI.**
 
@@ -6,17 +6,20 @@ This application automates the process of building a Machine Learning classifier
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### 1. 📂 Data Ingestion
+### 1. Data Ingestion
+
 - **Easy Upload**: Drag and drop your CSV files directly into the app.
 - **Instant Preview**: View your raw data immediately to understand its structure.
 
-### 2. 🕵️ Issue Detection
+### 2. Issue Detection
+
 - **Automated Scanning**: The app automatically scans your dataset for common quality issues.
 - **Detailed Insights**: Detects missing values, duplicate rows, and statistical outliers (using IQR).
 
-### 3. 🧹 Intelligent Preprocessing
+### 3. Intelligent Preprocessing
+
 - **AI-Powered Suggestions**: Get recommendations on how to clean your data.
 - **Flexible Cleaning**:
   - **Impute Missing Values**: Fill gaps with Mean, Median, or Mode.
@@ -24,14 +27,16 @@ This application automates the process of building a Machine Learning classifier
   - **Scale Features**: Normalize numerical data for better model performance.
 - **Schema View**: Track how your data types change during processing.
 
-### 4. 🔍 Exploratory Data Analysis (EDA)
+### 4. Exploratory Data Analysis (EDA)
+
 - **Interactive Visualizations**:
   - **Histograms & Boxplots**: Understand data distribution.
   - **Correlation Heatmaps**: Spot relationships between variables.
   - **3D Scatter Plots**: Explore complex interactions in 3D space.
 - **Descriptive Stats**: Get instant summary statistics (Mean, Std, Min, Max).
 
-### 5. 🧠 Model Training
+### 5. Model Training
+
 - **Multi-Model Comparison**: Automatically trains and evaluates 6 powerful classifiers:
   - Logistic Regression
   - Decision Tree
@@ -41,14 +46,16 @@ This application automates the process of building a Machine Learning classifier
   - Naive Bayes
 - **Customizable Split**: Adjust the Train/Test split ratio (10-50%) with a simple slider.
 
-### 6. 🏆 Evaluation & Interpretation
+### 6. Evaluation & Interpretation
+
 - **Leaderboard**: A ranked table of models based on Accuracy, F1 Score, Precision, and Recall.
 - **Visual Metrics**:
   - **Confusion Matrix**: See exactly where the model gets confused.
   - **Feature Importance**: Discover which variables drive predictions.
 - **Prediction Playground**: Test the best model with your own custom inputs in real-time.
 
-### 7. 📄 Comprehensive Reporting
+### 7. Comprehensive Reporting
+
 - **PDF Report Generation**: Download a professional project report containing:
   - Executive Summary (written by AI).
   - Data Transformation Logs.
@@ -58,35 +65,41 @@ This application automates the process of building a Machine Learning classifier
 
 ---
 
-## 🤖 AI Assistant (Gemini 2.0)
+## AI Assistant (Gemini 2.0)
+
 The app features a built-in **AI Tutor** in the sidebar.
+
 - **Context-Aware**: It knows your dataset and current progress.
 - **Educational**: Ask it to explain "What is F1 Score?" or "Why did Random Forest win?"
 - **Interactive**: The robot mascot wakes up when you chat!
 
 ---
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
+
 - Python 3.8+
 - A Google Gemini API Key (configured in `app/app.py` or via environment variables)
 
 ### Steps
 
 1. **Clone the Repository**
+
    ```bash
    git clone https://github.com/fatima-tuz-zahra-123/AutoML-Streamlit-Classifier.git
    cd AutoML-Streamlit-Classifier
    ```
 
 2. **Create a Virtual Environment**
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install Dependencies**
+
    ```bash
    pip install -r app/requirements.txt
    ```
@@ -98,7 +111,7 @@ The app features a built-in **AI Tutor** in the sidebar.
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 AutoML-Streamlit-Classifier/
@@ -123,9 +136,10 @@ AutoML-Streamlit-Classifier/
 ## 👥 Credits
 
 **Made in NUST - SEECS**
+
 - **Developers**: Asma & Fatima
 - **Tech Stack**: Streamlit, Scikit-learn, Pandas, Google Gemini
 
 ---
 
-*Happy Modeling!* 🚀
+_Happy Modeling!_ 🚀
