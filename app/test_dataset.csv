@@ -1,0 +1,13 @@
+Age,Fare,Survived,Class,Gender
+22.0,7.25,0,Third,Male
+38.0,71.28,1,First,Female
+26.0,7.92,1,Third,Female
+35.0,53.1,1,First,Female
+35.0,8.05,0,Third,Male
+,8.45,0,Third,Male
+54.0,51.86,0,First,Male
+2.0,21.07,0,Third,Male
+27.0,11.13,1,Third,Female
+14.0,30.07,1,Second,Female
+22.0,7.25,0,Third,Male
+38.0,71.28,1,First,Female
