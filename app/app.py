@@ -119,9 +119,12 @@ if 'best_model' not in st.session_state:
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "1. Upload Data"
 if 'gemini_api_key' not in st.session_state:
-    # Hardcoded API Key
-    st.session_state['gemini_api_key'] = "AIzaSyB-gen9Kdm8p7A_LkDpORUZN7DjR-xFWdU"
-    ai_assistant.configure_genai(st.session_state['gemini_api_key'])
+    # Load API Key from secrets
+    if "GEMINI_API_KEY" in st.secrets:
+        st.session_state['gemini_api_key'] = st.secrets["GEMINI_API_KEY"]
+        ai_assistant.configure_genai(st.session_state['gemini_api_key'])
+    else:
+        st.error("Gemini API Key not found. Please add it to .streamlit/secrets.toml")
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("✧ AutoML System")

@@ -1,80 +1,131 @@
-# AutoML Streamlit Classifier
+# AutoML Streamlit Classifier 🤖📊
 
-## Overview
-This is an automated machine learning (AutoML) application built with Streamlit. It allows users to upload a dataset, perform exploratory data analysis (EDA), detect data quality issues, preprocess the data, train multiple classification models, evaluate their performance, and generate a final report.
+**An intelligent, end-to-end Machine Learning pipeline powered by Streamlit and Google Gemini AI.**
 
-## Features
-1.  **Upload Data**: Support for CSV file uploads. Includes a complex sample dataset generator for testing.
-2.  **EDA**: 
-    *   Descriptive statistics.
-    *   Correlation heatmap.
-    *   Distribution plots (Histograms, Boxplots).
-    *   Pairplots.
-    *   **New**: Interactive 3D Scatter Plots.
-3.  **Issue Detection**:
-    *   Missing values analysis.
-    *   Duplicate rows detection.
-    *   Outlier detection using IQR method.
-4.  **Preprocessing**:
-    *   Missing value imputation (Mean, Median, Mode, Drop).
-    *   Categorical encoding (Label Encoding, One-Hot Encoding).
-    *   Feature scaling (StandardScaler, MinMaxScaler).
-    *   **New**: Ability to convert numeric columns to categorical.
-5.  **Model Training**:
-    *   Train multiple models: Logistic Regression, Decision Tree, Random Forest, SVM, KNN, Naive Bayes.
-    *   Real-time training status updates.
-6.  **Evaluation**:
-    *   Performance leaderboard (Accuracy, F1 Score, Precision, Recall).
-    *   Confusion Matrix.
-    *   **New**: Feature Importance visualization.
-    *   **New**: Prediction Playground for "What-If" analysis.
-    *   Model export (.pkl).
-7.  **Report**: Generate a PDF summary of the experiment.
+This application automates the process of building a Machine Learning classifier. It guides users through every step of the data science lifecycle—from raw data upload to model deployment—making ML accessible to everyone.
 
-## Installation
+---
 
-1.  Clone the repository.
-2.  Create a virtual environment:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-3.  Install dependencies:
-    ```bash
-    pip install -r app/requirements.txt
-    ```
+## 🌟 Key Features
 
-## Usage
+### 1. 📂 Data Ingestion
+- **Easy Upload**: Drag and drop your CSV files directly into the app.
+- **Instant Preview**: View your raw data immediately to understand its structure.
 
-Run the Streamlit app:
-```bash
-streamlit run app/app.py
+### 2. 🕵️ Issue Detection
+- **Automated Scanning**: The app automatically scans your dataset for common quality issues.
+- **Detailed Insights**: Detects missing values, duplicate rows, and statistical outliers (using IQR).
+
+### 3. 🧹 Intelligent Preprocessing
+- **AI-Powered Suggestions**: Get recommendations on how to clean your data.
+- **Flexible Cleaning**:
+  - **Impute Missing Values**: Fill gaps with Mean, Median, or Mode.
+  - **Encode Categoricals**: Convert text labels to numbers automatically.
+  - **Scale Features**: Normalize numerical data for better model performance.
+- **Schema View**: Track how your data types change during processing.
+
+### 4. 🔍 Exploratory Data Analysis (EDA)
+- **Interactive Visualizations**:
+  - **Histograms & Boxplots**: Understand data distribution.
+  - **Correlation Heatmaps**: Spot relationships between variables.
+  - **3D Scatter Plots**: Explore complex interactions in 3D space.
+- **Descriptive Stats**: Get instant summary statistics (Mean, Std, Min, Max).
+
+### 5. 🧠 Model Training
+- **Multi-Model Comparison**: Automatically trains and evaluates 6 powerful classifiers:
+  - Logistic Regression
+  - Decision Tree
+  - Random Forest
+  - Support Vector Machine (SVM)
+  - K-Nearest Neighbors (KNN)
+  - Naive Bayes
+- **Customizable Split**: Adjust the Train/Test split ratio (10-50%) with a simple slider.
+
+### 6. 🏆 Evaluation & Interpretation
+- **Leaderboard**: A ranked table of models based on Accuracy, F1 Score, Precision, and Recall.
+- **Visual Metrics**:
+  - **Confusion Matrix**: See exactly where the model gets confused.
+  - **Feature Importance**: Discover which variables drive predictions.
+- **Prediction Playground**: Test the best model with your own custom inputs in real-time.
+
+### 7. 📄 Comprehensive Reporting
+- **PDF Report Generation**: Download a professional project report containing:
+  - Executive Summary (written by AI).
+  - Data Transformation Logs.
+  - Model Performance Metrics.
+  - Visualizations (Feature Importance, Confusion Matrix).
+- **AI Insights**: The integrated Gemini AI explains your results in plain English.
+
+---
+
+## 🤖 AI Assistant (Gemini 2.0)
+The app features a built-in **AI Tutor** in the sidebar.
+- **Context-Aware**: It knows your dataset and current progress.
+- **Educational**: Ask it to explain "What is F1 Score?" or "Why did Random Forest win?"
+- **Interactive**: The robot mascot wakes up when you chat!
+
+---
+
+## 🛠️ Installation & Setup
+
+### Prerequisites
+- Python 3.8+
+- A Google Gemini API Key (configured in `app/app.py` or via environment variables)
+
+### Steps
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/fatima-tuz-zahra-123/AutoML-Streamlit-Classifier.git
+   cd AutoML-Streamlit-Classifier
+   ```
+
+2. **Create a Virtual Environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install Dependencies**
+   ```bash
+   pip install -r app/requirements.txt
+   ```
+
+4. **Run the Application**
+   ```bash
+   streamlit run app/app.py
+   ```
+
+---
+
+## 📂 Project Structure
+
+```
+AutoML-Streamlit-Classifier/
+├── app/
+│   ├── app.py                 # Main application entry point
+│   ├── ai_assistant.py        # Gemini AI integration logic
+│   ├── create_test_data.py    # Utility to generate dummy data
+│   ├── eda.py                 # Exploratory Data Analysis module
+│   ├── evaluation.py          # Model evaluation metrics & plots
+│   ├── issue_detection.py     # Data quality checks
+│   ├── modeling.py            # Model training logic
+│   ├── preprocessing.py       # Data cleaning & transformation
+│   ├── report.py              # PDF report generation
+│   ├── utils.py               # Helper functions
+│   └── requirements.txt       # Python dependencies
+├── DOCUMENTATION.md           # Detailed project documentation
+└── README.md                  # This file
 ```
 
-## Testing with Complex Data
-To test the robustness of the application, you can use the built-in "Load Sample Test Data (Complex)" button on the Upload page. This dataset includes:
-*   Missing values (NaNs).
-*   Outliers.
-*   Duplicate rows.
-*   Mixed data types.
+---
 
-## Project Structure
-*   `app/app.py`: Main application entry point.
-*   `app/eda.py`: Exploratory Data Analysis module.
-*   `app/issue_detection.py`: Data quality check module.
-*   `app/preprocessing.py`: Data cleaning and transformation module.
-*   `app/modeling.py`: Model training module.
-*   `app/evaluation.py`: Model evaluation and visualization module.
-*   `app/report.py`: PDF report generation module.
+## 👥 Credits
 
-## Recent Updates (Asma Branch)
-- **Navigation Fix**: Resolved `StreamlitAPIException` by implementing callback functions for sidebar navigation buttons.
-- **AI Model Upgrade**: Updated Gemini API integration to use `gemini-2.0-flash` model.
-- **Enhanced Reporting**: 
-    - Rewrote `generate_report` to provide comprehensive, explainable AI insights.
-    - Added reasoning capabilities to AI analysis (explaining *why* a model performed best).
-    - Integrated AI insights into the downloadable PDF report.
-- **UI/UX Improvements**:
-    - Added "Thinking..." spinners for visual feedback during AI operations.
-    - Refined AI persona to be friendly, professional, and emoji-free.
-    - Removed emojis from navigation buttons for a cleaner look.
+**Made in NUST - SEECS**
+- **Developers**: Asma & Fatima
+- **Tech Stack**: Streamlit, Scikit-learn, Pandas, Google Gemini
+
+---
+
+*Happy Modeling!* 🚀
