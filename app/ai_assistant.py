@@ -85,18 +85,7 @@ def get_step_guidance(step):
         Upload your CSV file here. Once uploaded, I'll take a quick look and tell you what's inside!
         """,
         
-        "2. EDA": """
-        **⭑.ᐟ**
-        **Exploratory Data Analysis (EDA)** is like interviewing your data. 
-        We want to understand:
-        1. How is the data distributed? (Histograms)
-        2. Are there relationships between variables? (Correlations/Scatter Plots)
-        3. Are there any weird patterns?
-        
-        Look at the charts below and try to spot trends!
-        """,
-        
-        "3. Issue Detection": """
+        "2. Issue Detection": """
         **⟡ ݁₊ .**
         Real-world data is rarely clean. It often has:
         - **Missing Values:** Empty cells.
@@ -106,7 +95,7 @@ def get_step_guidance(step):
         We need to find these issues now so we can fix them in the next step.
         """,
         
-        "4. Preprocessing": """
+        "3. Preprocessing": """
         ⤷ 
         This is the most critical step! Machine Learning models are like math equations—they need numbers, not words.
         
@@ -114,6 +103,17 @@ def get_step_guidance(step):
         1. **Impute Missing Values:** Fill in the blanks (e.g., with the average).
         2. **Encode Categories:** Turn text (e.g., "Red", "Blue") into numbers (e.g., 0, 1).
         3. **Scale Features:** Make sure big numbers (like Salary) don't dominate small numbers (like Age).
+        """,
+
+        "4. EDA": """
+        **⭑.ᐟ**
+        **Exploratory Data Analysis (EDA)** is like interviewing your data. 
+        Now that your data is clean, we can visualize it to understand:
+        1. How is the data distributed? (Histograms)
+        2. Are there relationships between variables? (Correlations/Scatter Plots)
+        3. Are there any weird patterns?
+        
+        Look at the charts below and try to spot trends!
         """,
         
         "5. Model Training": """
@@ -277,11 +277,10 @@ def chat_response(user_query, context_state):
         
         User Question: {user_query}
         
-        Answer the question clearly.
-        Be concise and to the point, but explain and answer all that is asked about to its completeness.
+        Answer the question clearly but VERY CONCISELY.
+        Keep your response short (max 3-4 sentences) unless the user explicitly asks for a detailed explanation.
         If it's about the data, use the context provided.
         Do not use emojis. Keep the tone friendly and professional.
-        Explain your reasoning step-by-step.
         """
         return get_gemini_response(prompt)
 

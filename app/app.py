@@ -77,6 +77,33 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background-color: #2962FF;
     }
+    /* Robot Animation */
+    @keyframes sleep {
+        0% { transform: scale(1) translateY(0px); opacity: 0.7; }
+        50% { transform: scale(1.02) translateY(2px); opacity: 0.5; }
+        100% { transform: scale(1) translateY(0px); opacity: 0.7; }
+    }
+    @keyframes happy-bounce {
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(-4px) rotate(-5deg); }
+        50% { transform: translateY(0) rotate(5deg); }
+        75% { transform: translateY(-2px) rotate(-3deg); }
+    }
+    .robot-avatar {
+        font-size: 2rem;
+        text-align: center;
+        margin-bottom: 5px;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .robot-sleeping {
+        animation: sleep 3s infinite ease-in-out;
+        filter: grayscale(0.6);
+    }
+    .robot-waking {
+        animation: happy-bounce 2s infinite ease-in-out;
+        filter: drop-shadow(0 0 8px rgba(41, 98, 255, 0.4));
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -97,14 +124,14 @@ if 'gemini_api_key' not in st.session_state:
     ai_assistant.configure_genai(st.session_state['gemini_api_key'])
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("AutoML System")
+st.sidebar.title("✧ AutoML System")
 
 # Progress Tracker
 steps = {
     "1. Upload Data": "raw_data",
-    "2. EDA": "raw_data",
-    "3. Issue Detection": "raw_data",
-    "4. Preprocessing": "clean_data",
+    "2. Issue Detection": "raw_data",
+    "3. Preprocessing": "clean_data",
+    "4. EDA": "clean_data",
     "5. Model Training": "model_results",
     "6. Evaluation": "model_results",
     "7. Report": "model_results"
@@ -148,20 +175,51 @@ st.sidebar.markdown("---")
 st.sidebar.info("ML Project by Asma and Fatima")
 
 # --- AI CHATBOT (SIDEBAR) ---
-with st.sidebar.expander("✦ AI Tutor Chat", expanded=False):
-    # Ensure API is configured
+st.sidebar.markdown("---")
+
+if 'chat_open' not in st.session_state:
+    st.session_state['chat_open'] = False
+
+def toggle_chat():
+    st.session_state['chat_open'] = not st.session_state['chat_open']
+
+# Robot Display
+if not st.session_state['chat_open']:
+    # Sleeping State
+    st.sidebar.markdown("""
+    <div style="text-align: center;">
+        <div class="robot-avatar robot-sleeping">🤖💤</div>
+        <p style="font-size: 0.8rem; color: #666;"><i>Activate AI Assistant</i></p>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.sidebar.button("Start", key="wake_btn", use_container_width=True, on_click=toggle_chat):
+        pass
+
+else:
+    # Active State
+    st.sidebar.markdown("""
+    <div style="text-align: center;">
+        <div class="robot-avatar robot-waking">🤖✨</div>
+        <p style="font-size: 0.9rem; color: #2962FF; font-weight: bold;">How can I assist?</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.sidebar.button("Close Chat", key="close_btn", use_container_width=True, on_click=toggle_chat):
+        pass
+
+    # Chat Interface (Only visible when open)
+    st.sidebar.markdown("### 💬 Chat with Data")
     if st.session_state['gemini_api_key']:
         ai_assistant.configure_genai(st.session_state['gemini_api_key'])
-        st.caption("✓ AI Connected")
     
-    with st.form(key='ai_chat_form'):
-        user_query = st.text_area("Ask me about your data!", height=80, placeholder="Type your question here...")
-        submit_button = st.form_submit_button(label='Send')
+    with st.sidebar.form(key='ai_chat_form'):
+        user_query = st.text_area("", height=100, placeholder="e.g., What is the best model?")
+        submit_button = st.form_submit_button(label='Send Question')
 
     if submit_button and user_query:
         with st.spinner("Thinking..."):
             response = ai_assistant.chat_response(user_query, st.session_state)
-            st.write(response)
+            st.sidebar.info(response)
 
 # --- PAGE ROUTING ---
 
@@ -215,44 +273,24 @@ if page == "1. Upload Data":
         except FileNotFoundError:
             st.error("Test data not found. Please run the generation script first.")
 
-# 2. EXPLORATORY DATA ANALYSIS
-elif page == "2. EDA":
-    st.title("Exploratory Data Analysis")
-    
-    # AI Guide
-    st.info(ai_assistant.get_step_guidance("2. EDA"))
-    
-    if st.session_state['raw_data'] is not None:
-        # AI Insights for EDA
-        with st.spinner("AI is looking for patterns..."):
-            insights = ai_assistant.interpret_eda(st.session_state['raw_data'])
-        if insights:
-            with st.expander("🤖 AI Insights for EDA", expanded=True):
-                for i in insights:
-                    st.write(i)
-                    
-        eda.run_eda(st.session_state['raw_data'])
-    else:
-        st.warning("Please upload a dataset in Step 1.")
-
-# 3. ISSUE DETECTION
-elif page == "3. Issue Detection":
+# 2. ISSUE DETECTION
+elif page == "2. Issue Detection":
     st.title("Data Quality Issues")
     
     # AI Guide
-    st.info(ai_assistant.get_step_guidance("3. Issue Detection"))
+    st.info(ai_assistant.get_step_guidance("2. Issue Detection"))
     
     if st.session_state['raw_data'] is not None:
         issue_detection.detect_issues(st.session_state['raw_data'])
     else:
         st.warning("Please upload a dataset in Step 1.")
 
-# 4. PREPROCESSING
-elif page == "4. Preprocessing":
+# 3. PREPROCESSING
+elif page == "3. Preprocessing":
     st.title("Preprocessing")
     
     # AI Guide
-    st.info(ai_assistant.get_step_guidance("4. Preprocessing"))
+    st.info(ai_assistant.get_step_guidance("3. Preprocessing"))
     
     if st.session_state['raw_data'] is not None:
         # We will implement this module next
@@ -261,6 +299,26 @@ elif page == "4. Preprocessing":
             st.session_state['clean_data'] = clean_df
     else:
         st.warning("Please upload a dataset in Step 1.")
+
+# 4. EDA
+elif page == "4. EDA":
+    st.title("Exploratory Data Analysis")
+    
+    # AI Guide
+    st.info(ai_assistant.get_step_guidance("4. EDA"))
+    
+    if st.session_state['clean_data'] is not None:
+        # AI Insights for EDA
+        with st.spinner("AI is looking for patterns..."):
+            insights = ai_assistant.interpret_eda(st.session_state['clean_data'])
+        if insights:
+            with st.expander("🤖 AI Insights for EDA", expanded=True):
+                for i in insights:
+                    st.write(i)
+                    
+        eda.run_eda(st.session_state['clean_data'])
+    else:
+        st.warning("Please preprocess your data in Step 3.")
 
 # 5. MODEL TRAINING
 elif page == "5. Model Training":
@@ -304,6 +362,7 @@ elif page == "7. Report":
             st.session_state['raw_data'], 
             st.session_state['clean_data'], 
             st.session_state['model_results'],
+            st.session_state['best_model'],
             preprocessing_log
         )
     else:

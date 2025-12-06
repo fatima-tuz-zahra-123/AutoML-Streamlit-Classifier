@@ -3,12 +3,33 @@ from fpdf import FPDF
 import base64
 import pandas as pd
 import ai_assistant
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import os
 
-def generate_ai_insights(raw_df, clean_df, results_df, preprocessing_log):
+def generate_ai_insights(raw_df, clean_df, results_df, best_model_data, preprocessing_log):
     """
     Generates 'AI-powered' insights based on heuristics and data analysis.
     Uses Gemini if available for a comprehensive report.
     """
+    # Extract Feature Importance
+    model = best_model_data['model']
+    X_test = best_model_data['X_test']
+    feature_names = X_test.columns.tolist()
+    
+    feature_importance_dict = {}
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        feature_importance_dict = dict(zip(feature_names, importances))
+    elif hasattr(model, 'coef_'):
+        importances = model.coef_[0]
+        feature_importance_dict = dict(zip(feature_names, importances))
+    
+    # Sort and get top 5
+    sorted_features = sorted(feature_importance_dict.items(), key=lambda item: abs(item[1]), reverse=True)[:5]
+    feature_imp_str = "\n".join([f"- {k}: {v:.4f}" for k, v in sorted_features])
+
     # Check if Gemini is configured
     if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
         best_model_row = results_df.loc[results_df['F1 Score'].idxmax()]
@@ -27,21 +48,25 @@ def generate_ai_insights(raw_df, clean_df, results_df, preprocessing_log):
         Preprocessing Actions Taken:
         {log_str}
         
+        Top 5 Important Features (based on model weights/importance):
+        {feature_imp_str}
+        
         Full Results:
         {results_df.to_string()}
         
         Write a comprehensive executive summary of this project.
-        1. Explain the data transformation (cleaning/preprocessing) in detail, referencing the specific actions taken (imputation, encoding, etc.).
+        1. Explain the data transformation (cleaning/preprocessing) in detail.
         2. Analyze the model performance comparison.
-        3. Explain WHY the best model likely won (e.g., Random Forest handles complex non-linear data better than Logistic Regression).
-        4. Provide a final conclusion and recommendation.
+        3. Explain WHY the best model likely won.
+        4. **Feature Importance Analysis**: Discuss the top features listed above. Explain what they likely represent and why they might be important for prediction in this context.
+        5. Provide a final conclusion and recommendation.
         
         Keep the tone professional, educational, and encouraging. Do not use emojis.
         Do not use markdown headers (like ## or ###). Use plain text with clear paragraph breaks.
-        Explain your reasoning clearly: "We can deduce that..."
+        Explain your reasoning clearly.
         """
         response = ai_assistant.get_gemini_response(prompt)
-        return [response]
+        return [response], sorted_features
 
     # Fallback Heuristic
     insights = []
@@ -78,13 +103,16 @@ def generate_ai_insights(raw_df, clean_df, results_df, preprocessing_log):
     diff = best_f1 - worst_model_row['F1 Score']
     insights.append(f"Model Comparison: The best model outperformed the lowest performing model ({worst_model_row['Model']}) by **{diff:.1%}**. This highlights the importance of testing multiple algorithms.")
 
-    return insights
+    return insights, sorted_features
 
-def generate_report(raw_df, clean_df, results_df):
+def generate_report(raw_df, clean_df, results_df, best_model_data, preprocessing_log=None):
     """
     Generates an interactive report and offers a PDF download.
     Satisfies Final Report User Story.
     """
+    if preprocessing_log is None:
+        preprocessing_log = []
+
     st.header("Final Project Report")
     st.markdown("This report summarizes the entire AutoML pipeline, from raw data to the final model.")
     
@@ -105,17 +133,26 @@ def generate_report(raw_df, clean_df, results_df):
     st.info("These insights are generated based on the analysis of your data pipeline and model results.")
     
     with st.spinner("AI is analyzing your results..."):
-        insights = generate_ai_insights(raw_df, clean_df, results_df)
+        insights, top_features = generate_ai_insights(raw_df, clean_df, results_df, best_model_data, preprocessing_log)
         for insight in insights:
             st.markdown(insight)
+            
+    # 3. Feature Importance
+    st.subheader("3. Key Drivers (Feature Importance)")
+    st.caption("These features had the most impact on the model's predictions.")
+    if top_features:
+        fi_df = pd.DataFrame(top_features, columns=['Feature', 'Importance'])
+        st.dataframe(fi_df)
+    else:
+        st.info("Feature importance not available for this model type.")
         
-    # 3. Leaderboard
-    st.subheader("3. Model Leaderboard")
+    # 4. Leaderboard
+    st.subheader("4. Model Leaderboard")
     st.dataframe(results_df.style.highlight_max(axis=0, color='#e6f3ff'))
     
     # --- PDF GENERATION ---
     st.markdown("---")
-    st.subheader("4. Export Report")
+    st.subheader("5. Export Report")
     st.write("Download a formal PDF version of this report for your records.")
     
     if st.button("Generate PDF Report"):
@@ -131,7 +168,10 @@ def generate_report(raw_df, clean_df, results_df):
             pdf.ln(10)
             
             pdf.set_font("Arial", size=12)
-            pdf.cell(0, 10, txt="Generated by AutoML Streamlit App", ln=True, align='C')
+            pdf.cell(0, 8, txt="Generated by AutoML Streamlit App", ln=True, align='C')
+            pdf.set_font("Arial", 'I', 10)
+            pdf.cell(0, 8, txt="Made by Asma Imran and Fatima Tuz Zahra", ln=True, align='C')
+            pdf.cell(0, 8, txt="NUST, Pakistan - Machine Learning Project", ln=True, align='C')
             pdf.ln(20)
             
             # --- 1. Dataset Overview ---
@@ -168,11 +208,76 @@ def generate_report(raw_df, clean_df, results_df):
                              pdf.multi_cell(0, 6, txt=p.strip())
                              pdf.ln(2)
             pdf.ln(10)
-            
-            # --- 3. Model Performance Leaderboard ---
+
+            # --- 3. Feature Importance ---
             pdf.add_page()
             pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, txt="3. Model Performance Leaderboard", ln=True, align='L')
+            pdf.cell(0, 10, txt="3. Key Drivers (Feature Importance)", ln=True, align='L')
+            pdf.ln(5)
+            pdf.set_font("Arial", size=11)
+            pdf.multi_cell(0, 8, txt="The chart below shows the top features that influenced the model's predictions. Higher bars indicate greater importance.")
+            pdf.ln(5)
+            
+            # Generate Feature Importance Plot
+            if top_features:
+                try:
+                    feat_names = [x[0] for x in top_features]
+                    feat_vals = [x[1] for x in top_features]
+                    
+                    plt.figure(figsize=(8, 4))
+                    sns.barplot(x=feat_vals, y=feat_names, palette='viridis')
+                    plt.title("Top 5 Feature Importances")
+                    plt.xlabel("Importance Score")
+                    plt.tight_layout()
+                    plt.savefig("temp_feat_imp.png")
+                    plt.close()
+                    
+                    pdf.image("temp_feat_imp.png", x=10, w=170)
+                    os.remove("temp_feat_imp.png")
+                    pdf.ln(5)
+                except Exception as e:
+                    pdf.cell(0, 8, txt=f"Could not generate plot: {e}", ln=True)
+
+            if top_features:
+                for feat, imp in top_features:
+                    pdf.cell(0, 8, txt=f"- {feat}: {imp:.4f}", ln=True)
+            else:
+                pdf.cell(0, 8, txt="Feature importance not available for this model.", ln=True)
+            pdf.ln(10)
+
+            # --- 4. Model Performance Leaderboard ---
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(0, 10, txt="4. Model Performance Leaderboard", ln=True, align='L')
+            pdf.ln(5)
+            
+            # Generate Confusion Matrix Plot
+            try:
+                model = best_model_data['model']
+                X_test = best_model_data['X_test']
+                y_test = best_model_data['y_test']
+                y_pred = model.predict(X_test)
+                cm = confusion_matrix(y_test, y_pred)
+                
+                plt.figure(figsize=(6, 5))
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+                plt.title(f"Confusion Matrix ({best_model_data['name']})")
+                plt.ylabel('Actual')
+                plt.xlabel('Predicted')
+                plt.tight_layout()
+                plt.savefig("temp_cm.png")
+                plt.close()
+                
+                pdf.image("temp_cm.png", x=50, w=100)
+                os.remove("temp_cm.png")
+                pdf.ln(5)
+                pdf.set_font("Arial", size=11)
+                pdf.multi_cell(0, 8, txt="The Confusion Matrix above visualizes the performance of the best model. The diagonal elements represent correctly classified instances, while off-diagonal elements represent errors.")
+                pdf.ln(5)
+            except Exception as e:
+                pdf.cell(0, 8, txt=f"Could not generate confusion matrix: {e}", ln=True)
+
+            pdf.set_font("Arial", 'B', 10)
+            # Table Header, txt="4. Model Performance Leaderboard", ln=True, align='L')
             pdf.ln(5)
             
             pdf.set_font("Arial", 'B', 10)
@@ -193,10 +298,10 @@ def generate_report(raw_df, clean_df, results_df):
             
             pdf.ln(10)
             
-            # --- 4. Conclusion ---
+            # --- 5. Conclusion ---
             best_model_name = results_df.loc[results_df['F1 Score'].idxmax()]['Model']
             pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, txt="4. Conclusion", ln=True, align='L')
+            pdf.cell(0, 10, txt="5. Conclusion", ln=True, align='L')
             pdf.ln(5)
             
             pdf.set_font("Arial", size=11)
