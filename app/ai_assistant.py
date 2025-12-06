@@ -80,13 +80,13 @@ def get_step_guidance(step):
     """
     guidance = {
         "1. Upload Data": """
-        **Teacher's Note:**
+        ⤷
         The first step in any Machine Learning project is getting your data ready. 
         Upload your CSV file here. Once uploaded, I'll take a quick look and tell you what's inside!
         """,
         
         "2. EDA": """
-        **Teacher's Note:**
+        **⭑.ᐟ**
         **Exploratory Data Analysis (EDA)** is like interviewing your data. 
         We want to understand:
         1. How is the data distributed? (Histograms)
@@ -97,7 +97,7 @@ def get_step_guidance(step):
         """,
         
         "3. Issue Detection": """
-        **Teacher's Note:**
+        **⟡ ݁₊ .**
         Real-world data is rarely clean. It often has:
         - **Missing Values:** Empty cells.
         - **Duplicates:** Repeated rows.
@@ -107,7 +107,7 @@ def get_step_guidance(step):
         """,
         
         "4. Preprocessing": """
-        **Teacher's Note:**
+        ⤷ 
         This is the most critical step! Machine Learning models are like math equations—they need numbers, not words.
         
         **Your Tasks:**
@@ -117,7 +117,7 @@ def get_step_guidance(step):
         """,
         
         "5. Model Training": """
-        **Teacher's Note:**
+        ⤷ 
         Now the magic happens! We will train multiple algorithms to learn patterns in your data.
         
         - **Logistic Regression:** Good for simple linear relationships.
@@ -128,7 +128,7 @@ def get_step_guidance(step):
         """,
         
         "6. Evaluation": """
-        **Teacher's Note:**
+        **⭑.ᐟ**
         How well did we do?
         
         - **Accuracy:** Overall percentage correct.
@@ -137,7 +137,7 @@ def get_step_guidance(step):
         """,
         
         "7. Report": """
-        **Teacher's Note:**
+        **⟡ ݁₊ .**
         Great job! You've built a full ML pipeline. 
         This page generates a professional report summarizing everything we found. You can download it and share it!
         """
@@ -197,6 +197,62 @@ def interpret_eda(df):
             
     return insights
 
+def get_preprocessing_suggestions(df):
+    """
+    Analyzes the dataframe and suggests preprocessing steps.
+    """
+    summary = df.describe().to_string()
+    missing = df.isnull().sum().to_string()
+    dtypes = df.dtypes.to_string()
+    
+    prompt = f"""
+    You are an expert Data Scientist. Analyze this dataset summary and suggest preprocessing steps.
+    
+    Data Types:
+    {dtypes}
+    
+    Missing Values:
+    {missing}
+    
+    Statistics:
+    {summary}
+    
+    Suggest what to do for:
+    1. Missing Values (Imputation vs Dropping)
+    2. Categorical Encoding (One-Hot vs Label)
+    3. Scaling (Standard vs MinMax)
+    
+    Explain WHY for each suggestion. Keep it concise and professional. No emojis.
+    """
+    return get_gemini_response(prompt)
+
+def get_modeling_suggestions(df, target_col):
+    """
+    Suggests models based on data characteristics.
+    """
+    n_rows, n_cols = df.shape
+    target_type = df[target_col].dtype
+    target_unique = df[target_col].nunique()
+    
+    prompt = f"""
+    You are an expert Data Scientist. We are solving a classification problem.
+    
+    Dataset Info:
+    - Rows: {n_rows}
+    - Columns: {n_cols}
+    - Target Variable: '{target_col}' (Type: {target_type}, Unique Values: {target_unique})
+    
+    Suggest which algorithms might work best and why.
+    Consider:
+    - Logistic Regression (Linear?)
+    - Random Forest (Complex/Non-linear?)
+    - SVM (Small/Medium data?)
+    - KNN (Instance based?)
+    
+    Provide a brief recommendation strategy. Keep it concise and professional. No emojis.
+    """
+    return get_gemini_response(prompt)
+
 def chat_response(user_query, context_state):
     """
     Chatbot response. Uses Gemini if available, else rule-based.
@@ -221,9 +277,11 @@ def chat_response(user_query, context_state):
         
         User Question: {user_query}
         
-        Answer the question clearly and concisely. If it's about the data, use the context provided.
+        Answer the question clearly.
+        Be concise and to the point, but explain and answer all that is asked about to its completeness.
+        If it's about the data, use the context provided.
         Do not use emojis. Keep the tone friendly and professional.
-        Explain your reasoning step-by-step. "I checked the data and found..."
+        Explain your reasoning step-by-step.
         """
         return get_gemini_response(prompt)
 

@@ -12,6 +12,9 @@ def run_preprocessing(df):
     # --- STATE MANAGEMENT ---
     if 'working_df' not in st.session_state:
         st.session_state['working_df'] = df.copy()
+    
+    if 'preprocessing_log' not in st.session_state:
+        st.session_state['preprocessing_log'] = []
 
     # Display feedback from previous action if any
     if 'preprocessing_feedback' in st.session_state:
@@ -20,9 +23,19 @@ def run_preprocessing(df):
 
     if st.button("Reset Preprocessing"):
         st.session_state['working_df'] = df.copy()
+        st.session_state['preprocessing_log'] = []
         st.rerun()
 
     df_clean = st.session_state['working_df']
+    
+    # --- AI SUGGESTIONS ---
+    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+        with st.expander("🤖 AI Preprocessing Suggestions", expanded=False):
+            if st.button("Get AI Suggestions"):
+                with st.spinner("Analyzing data for preprocessing suggestions..."):
+                    import ai_assistant
+                    suggestions = ai_assistant.get_preprocessing_suggestions(df_clean)
+                    st.markdown(suggestions)
     
     # --- CURRENT DATA SCHEMA VIEW ---
     with st.expander("🔍 View Current Data Schema (Columns & Types)", expanded=False):
@@ -52,10 +65,12 @@ def run_preprocessing(df):
                 df_clean.dropna(subset=[col_to_impute], inplace=True)
                 new_len = len(df_clean)
                 msg = f"Dropped {old_len - new_len} rows with missing values in '{col_to_impute}'."
+                st.session_state['preprocessing_log'].append(msg)
             elif strategy == "Mode":
                 mode_val = df_clean[col_to_impute].mode()[0]
                 df_clean[col_to_impute] = df_clean[col_to_impute].fillna(mode_val)
                 msg = f"Imputed '{col_to_impute}' with Mode: {mode_val}"
+                st.session_state['preprocessing_log'].append(msg)
             else:
                 # Ensure column is numeric for Mean/Median
                 if pd.api.types.is_numeric_dtype(df_clean[col_to_impute]):
@@ -65,6 +80,7 @@ def run_preprocessing(df):
                         fill_val = df_clean[col_to_impute].median()
                     df_clean[col_to_impute] = df_clean[col_to_impute].fillna(fill_val)
                     msg = f"Imputed '{col_to_impute}' with {strategy}: {fill_val:.2f}"
+                    st.session_state['preprocessing_log'].append(msg)
                 else:
                     st.error(f"Cannot apply {strategy} to non-numeric column '{col_to_impute}'. Please use 'Mode' or 'Drop Rows'.")
                     return None
@@ -88,6 +104,7 @@ def run_preprocessing(df):
             for col in cols_to_convert:
                 df_clean[col] = df_clean[col].astype(str)
             st.session_state['preprocessing_feedback'] = f"Converted {cols_to_convert} to string/categorical."
+            st.session_state['preprocessing_log'].append(f"Converted columns {cols_to_convert} to categorical type.")
             st.session_state['working_df'] = df_clean
             st.rerun()
 
@@ -123,6 +140,8 @@ def run_preprocessing(df):
         
         if not msg:
             msg = "No encoding applied (Target was already numeric and no features selected)."
+        else:
+            st.session_state['preprocessing_log'].append(msg)
 
         st.session_state['preprocessing_feedback'] = msg
         st.session_state['working_df'] = df_clean
@@ -138,6 +157,7 @@ def run_preprocessing(df):
         if cols_to_drop:
             df_clean.drop(columns=cols_to_drop, inplace=True)
             st.session_state['preprocessing_feedback'] = f"Dropped columns: {cols_to_drop}"
+            st.session_state['preprocessing_log'].append(f"Dropped columns: {cols_to_drop}")
             st.session_state['working_df'] = df_clean
             st.rerun()
 
@@ -162,6 +182,7 @@ def run_preprocessing(df):
                 
                 df_clean[cols_to_scale] = scaler.fit_transform(df_clean[cols_to_scale])
                 st.session_state['preprocessing_feedback'] = f"Applied {scaler_type} to {cols_to_scale}"
+                st.session_state['preprocessing_log'].append(f"Applied {scaler_type} to columns: {cols_to_scale}")
                 
                 st.session_state['working_df'] = df_clean
                 st.rerun()

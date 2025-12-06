@@ -23,6 +23,15 @@ def train_models(df):
     # Feature Selection (X)
     feature_cols = [c for c in columns if c != target_col]
     
+    # --- AI SUGGESTIONS ---
+    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+        with st.expander("🤖 AI Model Training Suggestions", expanded=False):
+            if st.button("Get AI Model Suggestions"):
+                with st.spinner("Analyzing data for model suggestions..."):
+                    import ai_assistant
+                    suggestions = ai_assistant.get_modeling_suggestions(df, target_col)
+                    st.markdown(suggestions)
+
     # --- FR-17: Data Splitting ---
     test_size = st.slider("Test Set Size", 0.1, 0.5, 0.2, 0.05)
     

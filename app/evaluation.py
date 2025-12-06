@@ -13,7 +13,16 @@ def show_dashboard(results_df, best_model_data):
     
     # --- FR-20: Performance Leaderboard ---
     st.subheader("1. Model Performance Leaderboard")
-    st.dataframe(results_df.sort_values(by="F1 Score", ascending=False).style.highlight_max(axis=0))
+    
+    # Highlight the best model row (max F1 Score)
+    best_idx = results_df['F1 Score'].idxmax()
+    
+    def highlight_best_row(row):
+        if row.name == best_idx:
+            return ['background-color: #e6f3ff'] * len(row)
+        return [''] * len(row)
+
+    st.dataframe(results_df.sort_values(by="F1 Score", ascending=False).style.apply(highlight_best_row, axis=1))
     
     # --- FR-21: Confusion Matrix for Best Model ---
     st.subheader(f"2. Confusion Matrix ({best_model_data['name']})")

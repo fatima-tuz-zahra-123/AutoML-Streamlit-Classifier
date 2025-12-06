@@ -56,6 +56,27 @@ st.markdown("""
     div[data-testid="stMarkdownContainer"] p {
         font-size: 1.05rem;
     }
+    /* Sidebar Expander Header Color - Robust Selector */
+    [data-testid="stSidebar"] [data-testid="stExpander"] details > summary {
+        background-color: #E3F2FD !important;
+        color: #0D47A1 !important;
+        border-radius: 8px;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] details > summary:hover {
+        background-color: #BBDEFB !important;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] details > summary p {
+        color: #0D47A1 !important;
+        font-weight: 600;
+    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] details > summary svg {
+        fill: #0D47A1 !important;
+        color: #0D47A1 !important;
+    }
+    /* Progress Bar Color Override */
+    .stProgress > div > div > div > div {
+        background-color: #2962FF;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -127,17 +148,20 @@ st.sidebar.markdown("---")
 st.sidebar.info("ML Project by Asma and Fatima")
 
 # --- AI CHATBOT (SIDEBAR) ---
-with st.sidebar.expander("💬 AI Tutor Chat", expanded=False):
+with st.sidebar.expander("✦ AI Tutor Chat", expanded=False):
     # Ensure API is configured
     if st.session_state['gemini_api_key']:
         ai_assistant.configure_genai(st.session_state['gemini_api_key'])
-        st.caption("✅ AI Connected")
+        st.caption("✓ AI Connected")
     
-    user_query = st.text_input("Ask me about your data!")
-    if user_query:
+    with st.form(key='ai_chat_form'):
+        user_query = st.text_area("Ask me about your data!", height=80, placeholder="Type your question here...")
+        submit_button = st.form_submit_button(label='Send')
+
+    if submit_button and user_query:
         with st.spinner("Thinking..."):
             response = ai_assistant.chat_response(user_query, st.session_state)
-        st.write(response)
+            st.write(response)
 
 # --- PAGE ROUTING ---
 
@@ -163,7 +187,8 @@ if page == "1. Upload Data":
             
             # AI Introduction
             with st.spinner("AI is analyzing the dataset..."):
-                st.markdown(ai_assistant.get_dataset_introduction(df))
+                with st.expander("See Dataset Breakdown"):
+                    st.markdown(ai_assistant.get_dataset_introduction(df))
             
             utils.display_metadata(df)
             
@@ -181,7 +206,8 @@ if page == "1. Upload Data":
             
             # AI Introduction
             with st.spinner("AI is analyzing the dataset..."):
-                st.markdown(ai_assistant.get_dataset_introduction(df))
+                with st.expander("See Dataset Breakdown"):
+                    st.markdown(ai_assistant.get_dataset_introduction(df))
             
             utils.display_metadata(df)
             with st.expander("View Raw Data Preview", expanded=True):
@@ -271,10 +297,14 @@ elif page == "7. Report":
     st.info(ai_assistant.get_step_guidance("7. Report"))
     
     if st.session_state['model_results'] is not None:
+        # Get preprocessing log if available
+        preprocessing_log = st.session_state.get('preprocessing_log', [])
+        
         report.generate_report(
             st.session_state['raw_data'], 
             st.session_state['clean_data'], 
-            st.session_state['model_results']
+            st.session_state['model_results'],
+            preprocessing_log
         )
     else:
-        st.warning("Complete the pipeline to generate a report.")
+        st.warning("Please train models in Step 5.")
