@@ -29,7 +29,7 @@ def run_preprocessing(df):
     df_clean = st.session_state['working_df']
     
     # --- AI SUGGESTIONS ---
-    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+    if 'groq_api_key' in st.session_state and st.session_state['groq_api_key']:
         with st.expander("🤖 AI Preprocessing Suggestions", expanded=False):
             if st.button("Get AI Suggestions"):
                 with st.spinner("Analyzing data for preprocessing suggestions..."):

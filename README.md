@@ -1,6 +1,6 @@
 # AutoML Streamlit Classifier
 
-**An intelligent, end-to-end Machine Learning pipeline powered by Streamlit and Google Gemini AI.**
+**An intelligent, end-to-end Machine Learning pipeline powered by Streamlit and Groq AI (Meta Llama).**
 
 This application automates the process of building a Machine Learning classifier. It guides users through every step of the data science lifecycle—from raw data upload to model deployment—making ML accessible to everyone.
 
@@ -57,7 +57,7 @@ This application automates the process of building a Machine Learning classifier
 ### 7. Comprehensive Reporting
 
 - **PDF Report Generation**: Download a professional project report containing:
-  - Executive Summary (written by AI).
+  - Executive Summary (AI-powered insights).
   - Data Transformation Logs.
   - Model Performance Metrics.
   - Visualizations (Feature Importance, Confusion Matrix).
@@ -65,13 +65,14 @@ This application automates the process of building a Machine Learning classifier
 
 ---
 
-## AI Assistant (Gemini 2.0)
+## AI Assistant (Meta Llama 3.3)
 
-The app features a built-in **AI Tutor** in the sidebar.
+The app features a built-in **AI Tutor** powered by Groq and Meta Llama 3.3 70B in the sidebar.
 
 - **Context-Aware**: It knows your dataset and current progress.
 - **Educational**: Ask it to explain "What is F1 Score?" or "Why did Random Forest win?"
 - **Interactive**: The robot mascot wakes up when you chat!
+- **Fast & Reliable**: Powered by Groq's high-performance inference.
 
 ---
 
@@ -80,7 +81,8 @@ The app features a built-in **AI Tutor** in the sidebar.
 ### Prerequisites
 
 - Python 3.8+
-- A Google Gemini API Key (configured in `app/app.py` or via environment variables)
+- A Groq API Key (get your free key at https://console.groq.com/keys)
+- Configure your API key in `.streamlit/secrets.toml`
 
 ### Steps
 

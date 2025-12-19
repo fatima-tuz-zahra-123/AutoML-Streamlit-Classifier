@@ -11,7 +11,7 @@ import os
 def generate_ai_insights(raw_df, clean_df, results_df, best_model_data, preprocessing_log):
     """
     Generates 'AI-powered' insights based on heuristics and data analysis.
-    Uses Gemini if available for a comprehensive report.
+    Uses Groq (Meta Llama) if available for a comprehensive report.
     """
     # Extract Feature Importance
     model = best_model_data['model']
@@ -31,7 +31,7 @@ def generate_ai_insights(raw_df, clean_df, results_df, best_model_data, preproce
     feature_imp_str = "\n".join([f"- {k}: {v:.4f}" for k, v in sorted_features])
 
     # Check if Gemini is configured
-    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+    if 'groq_api_key' in st.session_state and st.session_state['groq_api_key']:
         best_model_row = results_df.loc[results_df['F1 Score'].idxmax()]
         
         # Format preprocessing log
@@ -61,12 +61,16 @@ def generate_ai_insights(raw_df, clean_df, results_df, best_model_data, preproce
         4. **Feature Importance Analysis**: Discuss the top features listed above. Explain what they likely represent and why they might be important for prediction in this context.
         5. Provide a final conclusion and recommendation.
         
-        Keep the tone professional, educational, and encouraging. Do not use emojis.
+        {ai_assistant.get_persona_instruction()}
         Do not use markdown headers (like ## or ###). Use plain text with clear paragraph breaks.
         Explain your reasoning clearly.
         """
-        response = ai_assistant.get_gemini_response(prompt)
-        return [response], sorted_features
+        ai_assistant.log_to_ui("Requesting Report Generation (Checking Cache...)")
+        try:
+            response = ai_assistant._cached_ai_call_v2(prompt, st.session_state['groq_api_key'])
+            return [response], sorted_features
+        except ai_assistant.RateLimitError as e:
+            return [str(e)], sorted_features
 
     # Fallback Heuristic
     insights = []

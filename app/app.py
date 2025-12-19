@@ -18,6 +18,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- SESSION STATE INITIALIZATION ---
+if 'experience_level' not in st.session_state:
+    st.session_state['experience_level'] = 'Beginner'
+
 # --- CUSTOM CSS FOR MODERN UI ---
 st.markdown("""
     <style>
@@ -77,6 +81,11 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background-color: #2962FF;
     }
+    /* Reduce whitespace for HR */
+    hr {
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
     /* Robot Animation */
     @keyframes sleep {
         0% { transform: scale(1) translateY(0px); opacity: 0.7; }
@@ -108,6 +117,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- SESSION STATE INITIALIZATION ---
+if 'experience_level' not in st.session_state:
+    st.session_state['experience_level'] = 'Beginner'
 if 'raw_data' not in st.session_state:
     st.session_state['raw_data'] = None
 if 'clean_data' not in st.session_state:
@@ -118,16 +129,32 @@ if 'best_model' not in st.session_state:
     st.session_state['best_model'] = None
 if 'current_page' not in st.session_state:
     st.session_state['current_page'] = "1. Upload Data"
-if 'gemini_api_key' not in st.session_state:
+if 'groq_api_key' not in st.session_state:
     # Load API Key from secrets
-    if "GEMINI_API_KEY" in st.secrets:
-        st.session_state['gemini_api_key'] = st.secrets["GEMINI_API_KEY"]
-        ai_assistant.configure_genai(st.session_state['gemini_api_key'])
+    if "GROQ_API_KEY" in st.secrets:
+        st.session_state['groq_api_key'] = st.secrets["GROQ_API_KEY"]
+        ai_assistant.configure_genai(st.session_state['groq_api_key'])
     else:
-        st.error("Gemini API Key not found. Please add it to .streamlit/secrets.toml")
+        st.error("Groq API Key not found. Please add GROQ_API_KEY to .streamlit/secrets.toml")
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("✧ AutoML System")
+
+# Experience Level Selection
+st.sidebar.subheader("Experience Level")
+
+def on_level_change():
+    st.toast(f"AI Persona updated to: {st.session_state['experience_level']}", icon="🧠")
+
+st.sidebar.select_slider(
+    "Select your knowledge level:",
+    options=["Beginner", "Moderate", "Expert"],
+    key='experience_level',
+    on_change=on_level_change,
+    help="Slide to adjust how the AI explains concepts to you."
+)
+
+st.sidebar.markdown("---")
 
 # Progress Tracker
 steps = {
@@ -212,8 +239,8 @@ else:
 
     # Chat Interface (Only visible when open)
     st.sidebar.markdown("### 💬 Chat with Data")
-    if st.session_state['gemini_api_key']:
-        ai_assistant.configure_genai(st.session_state['gemini_api_key'])
+    if st.session_state.get('groq_api_key'):
+        ai_assistant.configure_genai(st.session_state['groq_api_key'])
     
     with st.sidebar.form(key='ai_chat_form'):
         user_query = st.text_area("", height=100, placeholder="e.g., What is the best model?")
@@ -223,6 +250,23 @@ else:
         with st.spinner("Thinking..."):
             response = ai_assistant.chat_response(user_query, st.session_state)
             st.sidebar.info(response)
+
+# --- DEBUG LOGS (ALWAYS VISIBLE) ---
+st.sidebar.markdown("---")
+with st.sidebar.expander("🛠️ API Debug Logs", expanded=False):
+    if 'api_logs' in st.session_state and st.session_state['api_logs']:
+        for log in reversed(st.session_state['api_logs']):
+            st.text(log)
+    else:
+        st.text("No API calls yet.")
+    
+    if st.sidebar.button("Clear Logs"):
+        st.session_state['api_logs'] = []
+        st.rerun()
+        
+    if st.sidebar.button("⚠️ Clear AI Cache"):
+        ai_assistant.clear_cache()
+        st.rerun()
 
 # --- PAGE ROUTING ---
 
@@ -245,16 +289,9 @@ if page == "1. Upload Data":
             if 'working_df' in st.session_state:
                 del st.session_state['working_df']
             st.success("File uploaded successfully!")
-            
-            # AI Introduction
-            with st.spinner("AI is analyzing the dataset..."):
-                with st.expander("See Dataset Breakdown"):
-                    st.markdown(ai_assistant.get_dataset_introduction(df))
-            
-            utils.display_metadata(df)
-            
-            with st.expander("View Raw Data Preview", expanded=True):
-                st.dataframe(df.head())
+    
+    st.markdown("---")
+    st.markdown("**OR** use a sample dataset:")
     
     # Add a button to load sample data for testing
     if st.button("Load Sample Test Data (Complex)"):
@@ -263,18 +300,34 @@ if page == "1. Upload Data":
             st.session_state['raw_data'] = df
             if 'working_df' in st.session_state:
                 del st.session_state['working_df']
+            # Clear previous AI analysis when new data is loaded
+            if 'dataset_intro' in st.session_state:
+                st.session_state['dataset_intro'] = None
             st.success("Loaded complex test dataset!")
-            
-            # AI Introduction
-            with st.spinner("AI is analyzing the dataset..."):
-                with st.expander("See Dataset Breakdown"):
-                    st.markdown(ai_assistant.get_dataset_introduction(df))
-            
-            utils.display_metadata(df)
-            with st.expander("View Raw Data Preview", expanded=True):
-                st.dataframe(df.head())
         except FileNotFoundError:
             st.error("Test data not found. Please run the generation script first.")
+
+    # --- COMMON DATA DISPLAY LOGIC ---
+    if st.session_state.get('raw_data') is not None:
+        df = st.session_state['raw_data']
+        
+        # AI Introduction
+        st.markdown("### Dataset Overview")
+        with st.expander("See Dataset Breakdown (AI Analysis)"):
+            if 'dataset_intro' not in st.session_state:
+                st.session_state['dataset_intro'] = None
+            
+            if st.button("Analyze Dataset with AI"):
+                with st.spinner("AI is analyzing the dataset..."):
+                    st.session_state['dataset_intro'] = ai_assistant.get_dataset_introduction(df)
+            
+            if st.session_state['dataset_intro']:
+                st.markdown(st.session_state['dataset_intro'])
+        
+        utils.display_metadata(df)
+        
+        with st.expander("View Raw Data Preview", expanded=True):
+            st.dataframe(df.head())
 
 # 2. ISSUE DETECTION
 elif page == "2. Issue Detection":

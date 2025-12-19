@@ -6,4 +6,4 @@ matplotlib
 seaborn
 fpdf
 plotly
-google-generativeai
+groq

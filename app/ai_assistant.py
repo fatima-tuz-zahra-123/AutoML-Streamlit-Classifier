@@ -1,47 +1,126 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import google.generativeai as genai
+from groq import Groq
 import os
+import time
+import re
+from datetime import datetime
+
+class RateLimitError(Exception):
+    pass
+
+def log_to_ui(message):
+    """Logs messages to the Streamlit session state for debugging."""
+    print(f"[AI DEBUG] {message}")
+    if 'api_logs' not in st.session_state:
+        st.session_state['api_logs'] = []
+    st.session_state['api_logs'].append(f"{datetime.now().strftime('%H:%M:%S')} - {message}")
 
 def configure_genai(api_key):
     """
-    Configures the Gemini API.
+    Configures the Groq API client.
     """
     if api_key:
-        genai.configure(api_key=api_key)
-        return True
-    return False
+        return Groq(api_key=api_key)
+    return None
 
-def get_gemini_response(prompt):
+def get_persona_instruction():
     """
-    Helper to get response from Gemini.
+    Returns the persona instruction based on the user's experience level.
     """
-    try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"AI Error: {str(e)}"
+    level = st.session_state.get('experience_level', 'Beginner')
+    if level == 'Expert':
+        return "You are an expert colleague. Be concise, use technical jargon, focus on advanced insights, and assume deep knowledge. Do not over-explain basics."
+    elif level == 'Moderate':
+        return "You are a helpful mentor. Balance simplicity with technical terms. Explain 'why' things happen, assuming basic knowledge of ML concepts."
+    else: # Beginner
+        return "You are a patient teacher. Explain simply, use analogies, avoid jargon where possible (or explain it), and be encouraging."
+
+def get_gemini_response(prompt, client=None):
+    """
+    Helper to get response from Groq with Meta Llama with retry logic.
+    """
+    if client is None:
+        api_key = st.session_state.get('groq_api_key')
+        if not api_key:
+            return "⚠️ **API Key Missing**. Please add your Groq API key."
+        client = Groq(api_key=api_key)
+    
+    log_to_ui(f"Initiating API Call. Prompt length: {len(prompt)} chars")
+    
+    for attempt in range(3): # Try 3 times
+        try:
+            log_to_ui(f"Attempt {attempt + 1}/3...")
+            # Using Meta Llama 3.3 70B model
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2048
+            )
+            log_to_ui("API Call Success!")
+            return response.choices[0].message.content
+        except Exception as e:
+            error_msg = str(e)
+            log_to_ui(f"Error on attempt {attempt + 1}: {error_msg}")
+            
+            if "429" in error_msg or "rate_limit" in error_msg.lower():
+                if attempt < 2: # Don't sleep on the last attempt
+                    wait_time = 10 * (attempt + 1) # Progressive backoff: 10s, 20s
+                    log_to_ui(f"Rate Limit hit. Sleeping for {wait_time}s...")
+                    st.toast(f"AI is busy (Rate Limit). Retrying in {wait_time}s...", icon="⏳")
+                    time.sleep(wait_time) 
+                    continue
+                else:
+                    log_to_ui("Max retries reached. Returning Rate Limit message.")
+                    return "⚠️ **AI Busy (Rate Limit)**. Please wait a minute and try again."
+            elif "401" in error_msg or "authentication" in error_msg.lower():
+                return f"⚠️ **Authentication Error**: Invalid API key. Please check your Groq API key."
+            else:
+                return f"AI Error: {error_msg}"
+    return "AI Error: Request failed."
+
+@st.cache_data(show_spinner=False)
+def _cached_ai_call_v2(prompt, api_key):
+    """
+    Internal function to cache AI responses.
+    """
+    client = configure_genai(api_key)
+    response = get_gemini_response(prompt, client)
+    if "AI Busy (Rate Limit)" in response:
+        raise RateLimitError(response)
+    return response
+
+def clear_cache():
+    """Clears the function cache to force new API calls."""
+    st.cache_data.clear()
+    log_to_ui("Cache cleared manually.")
 
 def get_dataset_introduction(df):
     """
     Generates an introductory explanation of the dataset.
-    Uses Gemini if available, otherwise falls back to heuristics.
+    Uses Groq if available, otherwise falls back to heuristics.
     """
     n_rows, n_cols = df.shape
     num_cols = df.select_dtypes(include=['number']).columns.tolist()
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
     
-    # Check if Gemini is configured
-    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+    # Check if Groq is configured
+    api_key = st.session_state.get('groq_api_key')
+    if api_key:
         # Create a summary for the AI
         summary = df.head().to_string()
         dtypes = df.dtypes.to_string()
         stats = df.describe().to_string()
         
+        persona = get_persona_instruction()
+        
         prompt = f"""
-        You are an expert Data Science Teacher. Introduce this dataset to a student.
+        {persona}
+        Introduce this dataset to the user.
         Here is the data summary:
         Shape: {n_rows} rows, {n_cols} columns.
         Columns & Types:
@@ -54,11 +133,14 @@ def get_dataset_introduction(df):
         {stats}
         
         Explain what this dataset seems to be about, what the columns represent, and what kind of classification problem we might solve with it. 
-        Keep it encouraging and educational. Do not use emojis. Keep the tone friendly and professional, like a helpful colleague. 
-        Make it concise and simple for a beginner, but include expert concepts where relevant.
+        Do not use emojis. Keep the tone friendly and professional.
         Explain your reasoning: "I deduced this because..."
         """
-        return get_gemini_response(prompt)
+        log_to_ui("Requesting Dataset Introduction (Checking Cache...)")
+        try:
+            return _cached_ai_call_v2(prompt, api_key)
+        except RateLimitError as e:
+            return str(e)
 
     # Fallback Heuristic
     intro = f"""
@@ -76,86 +158,61 @@ def get_dataset_introduction(df):
 
 def get_step_guidance(step):
     """
-    Returns teacher-like guidance for each step.
+    Returns guidance for each step based on experience level.
     """
-    guidance = {
-        "1. Upload Data": """
-        ⤷
-        The first step in any Machine Learning project is getting your data ready. 
-        Upload your CSV file here. Once uploaded, I'll take a quick look and tell you what's inside!
-        """,
-        
-        "2. Issue Detection": """
-        **⟡ ݁₊ .**
-        Real-world data is rarely clean. It often has:
-        - **Missing Values:** Empty cells.
-        - **Duplicates:** Repeated rows.
-        - **Outliers:** Values that are way too high or too low.
-        
-        We need to find these issues now so we can fix them in the next step.
-        """,
-        
-        "3. Preprocessing": """
-        ⤷ 
-        This is the most critical step! Machine Learning models are like math equations—they need numbers, not words.
-        
-        **Your Tasks:**
-        1. **Impute Missing Values:** Fill in the blanks (e.g., with the average).
-        2. **Encode Categories:** Turn text (e.g., "Red", "Blue") into numbers (e.g., 0, 1).
-        3. **Scale Features:** Make sure big numbers (like Salary) don't dominate small numbers (like Age).
-        """,
-
-        "4. EDA": """
-        **⭑.ᐟ**
-        **Exploratory Data Analysis (EDA)** is like interviewing your data. 
-        Now that your data is clean, we can visualize it to understand:
-        1. How is the data distributed? (Histograms)
-        2. Are there relationships between variables? (Correlations/Scatter Plots)
-        3. Are there any weird patterns?
-        
-        Look at the charts below and try to spot trends!
-        """,
-        
-        "5. Model Training": """
-        ⤷ 
-        Now the magic happens! We will train multiple algorithms to learn patterns in your data.
-        
-        - **Logistic Regression:** Good for simple linear relationships.
-        - **Random Forest:** Great for complex data, uses many "Decision Trees".
-        - **SVM:** Good for finding clear boundaries between classes.
-        
-        We will split your data into **Training** (to learn) and **Testing** (to check performance).
-        """,
-        
-        "6. Evaluation": """
-        **⭑.ᐟ**
-        How well did we do?
-        
-        - **Accuracy:** Overall percentage correct.
-        - **F1 Score:** A balanced score (better if classes are uneven).
-        - **Confusion Matrix:** Shows exactly where the model got confused (e.g., predicted 'Yes' when it was 'No').
-        """,
-        
-        "7. Report": """
-        **⟡ ݁₊ .**
-        Great job! You've built a full ML pipeline. 
-        This page generates a professional report summarizing everything we found. You can download it and share it!
-        """
+    level = st.session_state.get('experience_level', 'Beginner')
+    
+    # Define content for each level
+    content = {
+        "Beginner": {
+            "1. Upload Data": "👋 **Welcome!** Start by uploading your CSV file. I'll help you understand what's inside.",
+            "2. Issue Detection": "🧹 **Cleanup Time!** Real data is messy. Let's find missing values and duplicates.",
+            "3. Preprocessing": "⚙️ **Preparation:** Computers need numbers, not words. We'll convert text to numbers and fill in blanks.",
+            "4. EDA": "📊 **Exploration:** Let's look at charts to see patterns in your data.",
+            "5. Model Training": "🧠 **Training:** We will teach the computer to recognize patterns using different algorithms.",
+            "6. Evaluation": "📝 **Grading:** Let's see how well our models performed (like a test score!).",
+            "7. Report": "🎉 **Done!** Here is a summary of your project to download and share."
+        },
+        "Moderate": {
+            "1. Upload Data": "📂 **Data Ingestion:** Upload your dataset to initialize the pipeline. We'll perform a schema check.",
+            "2. Issue Detection": "🔍 **Data Quality Check:** We'll scan for nulls, duplicates, and outliers that could skew the model.",
+            "3. Preprocessing": "🛠️ **Feature Engineering:** Handle imputation, encoding (One-Hot/Label), and scaling for optimal model performance.",
+            "4. EDA": "📈 **EDA:** Analyze distributions and correlations to understand feature relationships.",
+            "5. Model Training": "🤖 **Model Selection:** Train standard classifiers (Logistic Regression, RF, SVM) and compare baselines.",
+            "6. Evaluation": "📉 **Metrics:** Analyze Accuracy, F1-Score, and Confusion Matrices to validate performance.",
+            "7. Report": "📄 **Documentation:** Generate a comprehensive report of the pipeline and results."
+        },
+        "Expert": {
+            "1. Upload Data": "📥 **Initialize Pipeline:** Load raw data for schema inference and initial profiling.",
+            "2. Issue Detection": "⚠️ **Sanity Check:** Audit data integrity. Check for sparsity, high cardinality, and statistical outliers.",
+            "3. Preprocessing": "🔧 **Transformation:** Configure imputation strategies, dimensionality reduction, and normalization techniques.",
+            "4. EDA": "📊 **Statistical Analysis:** Inspect distributions, multicollinearity, and variance.",
+            "5. Model Training": "🚀 **Training Loop:** Execute training across selected algorithms with default hyperparameters.",
+            "6. Evaluation": "📐 **Performance Analysis:** Review precision-recall trade-offs and misclassification errors.",
+            "7. Report": "📑 **Executive Summary:** Export technical documentation and model artifacts."
+        }
     }
-    return guidance.get(step, "")
+    
+    # Fallback to Beginner if level not found
+    selected_content = content.get(level, content["Beginner"])
+    return selected_content.get(step, "")
 
 def interpret_eda(df):
     """
     Provides specific insights based on EDA.
-    Uses Gemini if available.
+    Uses Groq if available.
     """
-    # Check if Gemini is configured
-    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+    # Check if Groq is configured
+    api_key = st.session_state.get('groq_api_key')
+    if api_key:
         summary = df.describe().to_string()
         corr = df.select_dtypes(include=['number']).corr().to_string()
         
+        persona = get_persona_instruction()
+        
         prompt = f"""
-        You are an expert Data Analyst. Analyze these statistics and correlations from a dataset.
+        {persona}
+        Analyze these statistics and correlations from a dataset.
         
         Statistics:
         {summary}
@@ -164,11 +221,14 @@ def interpret_eda(df):
         {corr}
         
         Provide 3-5 key insights about the data distribution, potential outliers, and relationships between variables.
-        Be specific and educational. Do not use emojis.
-        Explain your reasoning for each insight. For example: "I noticed X is high, which suggests Y..."
+        Do not use emojis.
+        Explain your reasoning for each insight.
         """
-        response = get_gemini_response(prompt)
-        return [response] # Return as a list to match existing structure
+        log_to_ui("Requesting EDA Interpretation (Checking Cache...)")
+        try:
+            return [_cached_ai_call_v2(prompt, api_key)] # Return as a list to match existing structure
+        except RateLimitError as e:
+            return [str(e)]
 
     # Fallback Heuristic
     insights = []
@@ -201,12 +261,17 @@ def get_preprocessing_suggestions(df):
     """
     Analyzes the dataframe and suggests preprocessing steps.
     """
+    api_key = st.session_state.get('groq_api_key')
+    if not api_key:
+        return "Please configure Groq API Key for suggestions."
+
     summary = df.describe().to_string()
     missing = df.isnull().sum().to_string()
     dtypes = df.dtypes.to_string()
     
     prompt = f"""
-    You are an expert Data Scientist. Analyze this dataset summary and suggest preprocessing steps.
+    {get_persona_instruction()}
+    Analyze this dataset summary and suggest preprocessing steps.
     
     Data Types:
     {dtypes}
@@ -224,18 +289,27 @@ def get_preprocessing_suggestions(df):
     
     Explain WHY for each suggestion. Keep it concise and professional. No emojis.
     """
-    return get_gemini_response(prompt)
+    log_to_ui("Requesting Preprocessing Suggestions (Checking Cache...)")
+    try:
+        return _cached_ai_call_v2(prompt, api_key)
+    except RateLimitError as e:
+        return str(e)
 
 def get_modeling_suggestions(df, target_col):
     """
     Suggests models based on data characteristics.
     """
+    api_key = st.session_state.get('groq_api_key')
+    if not api_key:
+        return "Please configure Gemini API Key for suggestions."
+
     n_rows, n_cols = df.shape
     target_type = df[target_col].dtype
     target_unique = df[target_col].nunique()
     
     prompt = f"""
-    You are an expert Data Scientist. We are solving a classification problem.
+    {get_persona_instruction()}
+    We are solving a classification problem.
     
     Dataset Info:
     - Rows: {n_rows}
@@ -251,14 +325,19 @@ def get_modeling_suggestions(df, target_col):
     
     Provide a brief recommendation strategy. Keep it concise and professional. No emojis.
     """
-    return get_gemini_response(prompt)
+    log_to_ui("Requesting Modeling Suggestions (Checking Cache...)")
+    try:
+        return _cached_ai_call_v2(prompt, api_key)
+    except RateLimitError as e:
+        return str(e)
 
 def chat_response(user_query, context_state):
     """
     Chatbot response. Uses Gemini if available, else rule-based.
     """
     # Check if Gemini is configured
-    if 'gemini_api_key' in context_state and context_state['gemini_api_key']:
+    if 'groq_api_key' in context_state and context_state['groq_api_key']:
+        api_key = context_state['groq_api_key']
         # Build context string
         context_str = ""
         if context_state['raw_data'] is not None:
@@ -266,23 +345,27 @@ def chat_response(user_query, context_state):
             context_str += f"Dataset Shape: {df.shape}\nColumns: {df.columns.tolist()}\n"
             context_str += f"Missing Values: {df.isnull().sum().sum()}\n"
         
-        if context_state['model_results'] is not None:
+        if context_state.get('model_results') is not None:
             best = context_state['model_results'].loc[context_state['model_results']['F1 Score'].idxmax()]['Model']
             context_str += f"Best Model: {best}\n"
 
         prompt = f"""
-        You are a helpful AI Data Science Tutor for a student project.
+        {get_persona_instruction()}
         Current Context:
         {context_str}
         
         User Question: {user_query}
         
-        Answer the question clearly but VERY CONCISELY.
+        Answer the question clearly.
         Keep your response short (max 3-4 sentences) unless the user explicitly asks for a detailed explanation.
         If it's about the data, use the context provided.
         Do not use emojis. Keep the tone friendly and professional.
         """
-        return get_gemini_response(prompt)
+        log_to_ui("Requesting Chat Response (Checking Cache...)")
+        try:
+            return _cached_ai_call_v2(prompt, api_key)
+        except RateLimitError as e:
+            return str(e)
 
     # Fallback Rule-Based
     user_query = user_query.lower()

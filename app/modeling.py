@@ -24,7 +24,7 @@ def train_models(df):
     feature_cols = [c for c in columns if c != target_col]
     
     # --- AI SUGGESTIONS ---
-    if 'gemini_api_key' in st.session_state and st.session_state['gemini_api_key']:
+    if 'groq_api_key' in st.session_state and st.session_state['groq_api_key']:
         with st.expander("🤖 AI Model Training Suggestions", expanded=False):
             if st.button("Get AI Model Suggestions"):
                 with st.spinner("Analyzing data for model suggestions..."):
