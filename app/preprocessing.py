@@ -16,6 +16,13 @@ def run_preprocessing(df):
     if 'preprocessing_log' not in st.session_state:
         st.session_state['preprocessing_log'] = []
 
+    # --- PREPROCESSING CHANGES CHECKLIST ---
+    if st.session_state['preprocessing_log']:
+        st.info("📋 **Preprocessing Changes Applied:**")
+        for i, change in enumerate(st.session_state['preprocessing_log'], 1):
+            st.markdown(f"✓ {change}")
+        st.markdown("---")
+    
     # Display feedback from previous action if any
     if 'preprocessing_feedback' in st.session_state:
         st.success(st.session_state['preprocessing_feedback'])
@@ -45,6 +52,33 @@ def run_preprocessing(df):
             'Type': df_clean.dtypes.astype(str)
         }).reset_index(drop=True), use_container_width=True)
     
+    # --- COLUMN RENAMING (New Feature) ---
+    st.subheader("0. Column Analysis & Renaming")
+    st.caption("Review and rename columns to make them more understandable before further processing.")
+    
+    with st.expander("📝 Rename Columns", expanded=False):
+        st.info("Rename columns with confusing names (e.g., abbreviations, codes) to clearer descriptions.")
+        
+        # Show current columns with their basic stats
+        rename_cols = st.multiselect("Select columns to rename", df_clean.columns.tolist())
+        
+        if rename_cols:
+            rename_map = {}
+            for col in rename_cols:
+                new_name = st.text_input(f"New name for '{col}':", value=col, key=f"rename_{col}")
+                if new_name and new_name != col:
+                    rename_map[col] = new_name
+            
+            if rename_map and st.button("Apply Rename"):
+                df_clean = df_clean.rename(columns=rename_map)
+                msg = f"Renamed columns: {rename_map}"
+                st.session_state['preprocessing_log'].append(msg)
+                st.session_state['preprocessing_feedback'] = msg
+                st.session_state['working_df'] = df_clean
+                st.rerun()
+    
+    st.markdown("---")
+    
     # --- 1. HANDLE MISSING VALUES (FR-12) ---
     st.subheader("1. Missing Value Imputation")
     
@@ -53,7 +87,7 @@ def run_preprocessing(df):
     missing_summary = missing_summary[missing_summary > 0]
     
     if not missing_summary.empty:
-        st.error(f"The dataset has missing values in {len(missing_summary)} columns.")
+        st.info(f"⚠️ The dataset has missing values in {len(missing_summary)} columns.")
         st.dataframe(pd.DataFrame({'Missing Count': missing_summary, 'Percentage': (missing_summary/len(df_clean)*100).round(2)}))
         
         col_to_impute = st.selectbox("Select Column to Impute", missing_summary.index)
@@ -113,11 +147,18 @@ def run_preprocessing(df):
     categorical_cols = df_clean.select_dtypes(include=['object', 'category']).columns.tolist()
     
     # Target Selection
-    target_col = st.selectbox("Select Target Variable (Will be Label Encoded)", all_columns, index=len(all_columns)-1)
+    target_col = st.selectbox("Select Target Variable (Y)", all_columns, index=len(all_columns)-1)
     
-    # One-Hot Encoding Selection (Exclude Target)
-    potential_categorical = [c for c in all_columns if c != target_col and (c in categorical_cols or df_clean[c].nunique() < 20)]
-    features_to_encode = st.multiselect("Select Categorical Features to One-Hot Encode", potential_categorical)
+    # One-Hot Encoding Selection - ONLY allow actual categorical (string/object) columns
+    # Filter out numerical columns even if they have few unique values
+    true_categorical = [c for c in categorical_cols if c != target_col]
+    
+    if true_categorical:
+        st.caption("Only string/categorical columns are shown below. Convert numeric columns to categorical first if needed.")
+        features_to_encode = st.multiselect("Select Categorical Features to One-Hot Encode", true_categorical)
+    else:
+        st.info("No categorical columns detected. All features appear to be numeric.")
+        features_to_encode = []
     
     if st.button("Apply Encoding"):
         msg = ""

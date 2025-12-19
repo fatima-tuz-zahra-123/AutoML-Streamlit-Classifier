@@ -101,12 +101,15 @@ def clear_cache():
 
 def get_dataset_introduction(df):
     """
-    Generates an introductory explanation of the dataset.
+    Generates a comprehensive introductory explanation of the dataset.
     Uses Groq if available, otherwise falls back to heuristics.
+    Produces professional, report-ready content.
     """
     n_rows, n_cols = df.shape
     num_cols = df.select_dtypes(include=['number']).columns.tolist()
     cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+    missing_total = df.isnull().sum().sum()
+    missing_pct = (missing_total / (n_rows * n_cols)) * 100 if n_rows * n_cols > 0 else 0
     
     # Check if Groq is configured
     api_key = st.session_state.get('groq_api_key')
@@ -120,21 +123,37 @@ def get_dataset_introduction(df):
         
         prompt = f"""
         {persona}
-        Introduce this dataset to the user.
-        Here is the data summary:
-        Shape: {n_rows} rows, {n_cols} columns.
+        
+        You are writing the introduction section of a university-level machine learning project report.
+        Write a comprehensive, professional introduction for this dataset that would fit in an academic report.
+        
+        Dataset Information:
+        - Shape: {n_rows} rows, {n_cols} columns
+        - Numerical columns ({len(num_cols)}): {', '.join(num_cols[:10])}{'...' if len(num_cols) > 10 else ''}
+        - Categorical columns ({len(cat_cols)}): {', '.join(cat_cols[:10])}{'...' if len(cat_cols) > 10 else ''}
+        - Missing values: {missing_total} total ({missing_pct:.1f}% of data)
+        
         Columns & Types:
         {dtypes}
         
-        First 5 rows:
+        First 5 rows (sample):
         {summary}
         
-        Statistics:
+        Descriptive Statistics:
         {stats}
         
-        Explain what this dataset seems to be about, what the columns represent, and what kind of classification problem we might solve with it. 
-        Do not use emojis. Keep the tone friendly and professional.
-        Explain your reasoning: "I deduced this because..."
+        Your introduction should include:
+        1. A clear description of what this dataset appears to represent (the domain/context)
+        2. An explanation of what each column likely represents
+        3. The potential target variable for classification
+        4. The type of machine learning problem this represents
+        5. Any initial observations about data quality or interesting patterns
+        6. How this dataset could be useful for predictive modeling
+        
+        Write in a clear, academic tone suitable for a university project report.
+        Use proper paragraphs, not bullet points.
+        Do not use emojis or markdown headers.
+        Keep it between 200-300 words.
         """
         log_to_ui("Requesting Dataset Introduction (Checking Cache...)")
         try:
@@ -142,19 +161,29 @@ def get_dataset_introduction(df):
         except RateLimitError as e:
             return str(e)
 
-    # Fallback Heuristic
+    # Fallback Heuristic - More comprehensive version
     intro = f"""
-    ### Dataset Introduction
-    Hello! I've analyzed your uploaded dataset. Here is what I found:
-    
-    - **Size:** The dataset contains **{n_rows} rows** (samples) and **{n_cols} columns** (features).
-    - **Structure:** It is a mix of **{len(num_cols)} numerical** features (like {', '.join(num_cols[:3])}...) and **{len(cat_cols)} categorical** features (like {', '.join(cat_cols[:3])}...).
-    
-    **Goal:** 
-    We are likely trying to predict one of the categorical columns (Classification) or a numerical value (Regression). 
-    Since this is a **Classifier** app, you should look for a column that represents a category or label (e.g., 'Survived', 'Churn', 'Species') to be your **Target Variable**.
+**Dataset Overview**
+
+This dataset contains {n_rows:,} observations (rows) and {n_cols} variables (columns), providing a substantial foundation for machine learning analysis.
+
+**Data Structure**
+
+The dataset comprises {len(num_cols)} numerical features and {len(cat_cols)} categorical features. The numerical columns include: {', '.join(num_cols[:5])}{'...' if len(num_cols) > 5 else ''}. The categorical columns include: {', '.join(cat_cols[:5]) if cat_cols else 'None detected'}{'...' if len(cat_cols) > 5 else ''}.
+
+**Data Quality**
+
+The dataset has {missing_total:,} missing values, representing approximately {missing_pct:.1f}% of the total data. {'This indicates a relatively clean dataset.' if missing_pct < 5 else 'Some data cleaning may be required to handle these missing values.'}
+
+**Classification Potential**
+
+As this is a classification application, the goal is to predict a categorical outcome. Potential target variables may include columns with distinct categories or labels. Look for columns that represent outcomes, classes, or groups (such as 'Species', 'Churn', 'Outcome', or 'Target').
+
+**Next Steps**
+
+Proceed to the Issue Detection step to identify and address any data quality issues before preprocessing and model training.
     """
-    return intro
+    return intro.strip()
 
 def get_step_guidance(step):
     """

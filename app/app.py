@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import base64
+import os
 
 # Import your custom modules
 import utils
@@ -25,16 +27,24 @@ if 'experience_level' not in st.session_state:
 # --- CUSTOM CSS FOR MODERN UI ---
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    /* Global Font */
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+    
     /* Main Background */
     .main {
         background-color: #FFFFFF;
     }
+    
     /* Headers */
     h1, h2, h3 {
         color: #2962FF;
-        font-family: 'Helvetica Neue', sans-serif;
         font-weight: 700;
     }
+    
     /* Buttons */
     .stButton>button {
         background-color: #2962FF;
@@ -48,19 +58,44 @@ st.markdown("""
         background-color: #0039CB;
         color: white;
     }
+    
     /* Metrics */
     [data-testid="stMetricValue"] {
         color: #2962FF;
     }
+    
+    /* Selectbox styling */
+    [data-testid="stSelectbox"] label {
+        color: #2962FF !important;
+        font-weight: 600;
+    }
+    
+    /* Info/Warning messages - black text */
+    .stAlert, [data-testid="stAlert"] {
+        color: #000000 !important;
+    }
+    .stAlert p, [data-testid="stAlert"] p {
+        color: #000000 !important;
+    }
+    
+    /* Sample data buttons - equal sizing */
+    .sample-btn-container .stButton > button {
+        min-height: 60px;
+        font-size: 0.85rem;
+    }
+    
+    /* Remove all orange/red colors */
+    * {
+        --primary-color: #2962FF !important;
+    }
+    
     /* Sidebar Radio Button Color Fix */
     div[role="radiogroup"] > label > div:first-child {
         background-color: #2962FF !important;
         border-color: #2962FF !important;
     }
-    div[data-testid="stMarkdownContainer"] p {
-        font-size: 1.05rem;
-    }
-    /* Sidebar Expander Header Color - Robust Selector */
+    
+    /* Sidebar Expander Header */
     [data-testid="stSidebar"] [data-testid="stExpander"] details > summary {
         background-color: #E3F2FD !important;
         color: #0D47A1 !important;
@@ -77,41 +112,58 @@ st.markdown("""
         fill: #0D47A1 !important;
         color: #0D47A1 !important;
     }
-    /* Progress Bar Color Override */
+    
+    /* Progress Bar - Blue */
     .stProgress > div > div > div > div {
-        background-color: #2962FF;
+        background-color: #2962FF !important;
     }
+    
+    /* All Links - Blue */
+    a {
+        color: #2962FF !important;
+    }
+    a:hover {
+        color: #0039CB !important;
+    }
+    
+    /* Expander - Blue on hover */
+    [data-testid="stExpander"] summary:hover {
+        color: #2962FF !important;
+    }
+    
+    /* Error/Warning to Info Blue */
+    .stAlert {
+        background-color: #E3F2FD !important;
+        color: #0D47A1 !important;
+    }
+    
     /* Reduce whitespace for HR */
     hr {
         margin-top: 0.5rem !important;
         margin-bottom: 0.5rem !important;
     }
-    /* Robot Animation */
-    @keyframes sleep {
-        0% { transform: scale(1) translateY(0px); opacity: 0.7; }
-        50% { transform: scale(1.02) translateY(2px); opacity: 0.5; }
-        100% { transform: scale(1) translateY(0px); opacity: 0.7; }
+    
+    /* AI Assistant Icon Animation */
+    @keyframes gentle-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.85; }
+        50% { transform: scale(1.05); opacity: 1; }
     }
-    @keyframes happy-bounce {
-        0%, 100% { transform: translateY(0); }
-        25% { transform: translateY(-4px) rotate(-5deg); }
-        50% { transform: translateY(0) rotate(5deg); }
-        75% { transform: translateY(-2px) rotate(-3deg); }
+    @keyframes active-glow {
+        0%, 100% { transform: translateY(0); box-shadow: 0 0 10px rgba(41, 98, 255, 0.3); }
+        50% { transform: translateY(-2px); box-shadow: 0 0 20px rgba(41, 98, 255, 0.5); }
     }
-    .robot-avatar {
+    .ai-avatar {
         font-size: 2rem;
         text-align: center;
         margin-bottom: 5px;
         display: inline-block;
         cursor: pointer;
     }
-    .robot-sleeping {
-        animation: sleep 3s infinite ease-in-out;
-        filter: grayscale(0.6);
+    .ai-sleeping {
+        animation: gentle-pulse 3s infinite ease-in-out;
     }
-    .robot-waking {
-        animation: happy-bounce 2s infinite ease-in-out;
-        filter: drop-shadow(0 0 8px rgba(41, 98, 255, 0.4));
+    .ai-active {
+        animation: active-glow 2s infinite ease-in-out;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -146,12 +198,12 @@ st.sidebar.subheader("Experience Level")
 def on_level_change():
     st.toast(f"AI Persona updated to: {st.session_state['experience_level']}", icon="🧠")
 
-st.sidebar.select_slider(
-    "Select your knowledge level:",
+st.sidebar.selectbox(
+    "Select your level:",
     options=["Beginner", "Moderate", "Expert"],
     key='experience_level',
     on_change=on_level_change,
-    help="Slide to adjust how the AI explains concepts to you."
+    label_visibility="collapsed"
 )
 
 st.sidebar.markdown("---")
@@ -202,24 +254,34 @@ if current_index < len(step_list) - 1:
         pass
 
 st.sidebar.markdown("---")
-st.sidebar.info("ML Project by Asma and Fatima")
 
 # --- AI CHATBOT (SIDEBAR) ---
-st.sidebar.markdown("---")
-
 if 'chat_open' not in st.session_state:
     st.session_state['chat_open'] = False
 
 def toggle_chat():
     st.session_state['chat_open'] = not st.session_state['chat_open']
 
-# Robot Display
+# Load robot gif as base64
+def get_robot_gif_base64():
+    gif_path = os.path.join(os.path.dirname(__file__), "ROBOT.gif")
+    if os.path.exists(gif_path):
+        with open(gif_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return None
+
+robot_gif_b64 = get_robot_gif_base64()
+robot_img_tag = f'<img src="data:image/gif;base64,{robot_gif_b64}" width="80" />' if robot_gif_b64 else '🤖'
+
+# AI Assistant Display
 if not st.session_state['chat_open']:
-    # Sleeping State
-    st.sidebar.markdown("""
+    # Inactive State
+    st.sidebar.markdown(f"""
     <div style="text-align: center;">
-        <div class="robot-avatar robot-sleeping">🤖💤</div>
-        <p style="font-size: 0.8rem; color: #666;"><i>Activate AI Assistant</i></p>
+        <div class="ai-avatar ai-sleeping">
+            {robot_img_tag}
+        </div>
+        <p style="font-size: 0.8rem; color: #2962FF;"><i>Activate AI Assistant</i></p>
     </div>
     """, unsafe_allow_html=True)
     if st.sidebar.button("Start", key="wake_btn", use_container_width=True, on_click=toggle_chat):
@@ -227,9 +289,11 @@ if not st.session_state['chat_open']:
 
 else:
     # Active State
-    st.sidebar.markdown("""
+    st.sidebar.markdown(f"""
     <div style="text-align: center;">
-        <div class="robot-avatar robot-waking">🤖✨</div>
+        <div class="ai-avatar ai-active">
+            {robot_img_tag}
+        </div>
         <p style="font-size: 0.9rem; color: #2962FF; font-weight: bold;">How can I assist?</p>
     </div>
     """, unsafe_allow_html=True)
@@ -242,31 +306,22 @@ else:
     if st.session_state.get('groq_api_key'):
         ai_assistant.configure_genai(st.session_state['groq_api_key'])
     
-    with st.sidebar.form(key='ai_chat_form'):
-        user_query = st.text_area("", height=100, placeholder="e.g., What is the best model?")
-        submit_button = st.form_submit_button(label='Send Question')
+    user_question = st.sidebar.text_input("Ask anything about your data...")
+    if user_question:
+        with st.sidebar:
+            with st.spinner("Thinking..."):
+                # Build context for chat_response
+                context_state = {
+                    'raw_data': st.session_state.get('raw_data'),
+                    'clean_data': st.session_state.get('clean_data'),
+                    'model_results': st.session_state.get('model_results'),
+                    'groq_api_key': st.session_state.get('groq_api_key')
+                }
+                response = ai_assistant.chat_response(user_question, context_state)
+                st.markdown(response)
 
-    if submit_button and user_query:
-        with st.spinner("Thinking..."):
-            response = ai_assistant.chat_response(user_query, st.session_state)
-            st.sidebar.info(response)
-
-# --- DEBUG LOGS (ALWAYS VISIBLE) ---
 st.sidebar.markdown("---")
-with st.sidebar.expander("🛠️ API Debug Logs", expanded=False):
-    if 'api_logs' in st.session_state and st.session_state['api_logs']:
-        for log in reversed(st.session_state['api_logs']):
-            st.text(log)
-    else:
-        st.text("No API calls yet.")
-    
-    if st.sidebar.button("Clear Logs"):
-        st.session_state['api_logs'] = []
-        st.rerun()
-        
-    if st.sidebar.button("⚠️ Clear AI Cache"):
-        ai_assistant.clear_cache()
-        st.rerun()
+st.sidebar.info("⸜(｡˃ ᵕ ˂ )⸝♡ Made by Asma and Fatima ⊹ ࣪ ˖")
 
 # --- PAGE ROUTING ---
 
@@ -291,21 +346,33 @@ if page == "1. Upload Data":
             st.success("File uploaded successfully!")
     
     st.markdown("---")
-    st.markdown("**OR** use a sample dataset:")
+    st.markdown("**OR** choose a sample dataset:")
     
-    # Add a button to load sample data for testing
-    if st.button("Load Sample Test Data (Complex)"):
-        try:
-            df = pd.read_csv("app/complex_test_dataset.csv")
-            st.session_state['raw_data'] = df
-            if 'working_df' in st.session_state:
-                del st.session_state['working_df']
-            # Clear previous AI analysis when new data is loaded
-            if 'dataset_intro' in st.session_state:
-                st.session_state['dataset_intro'] = None
-            st.success("Loaded complex test dataset!")
-        except FileNotFoundError:
-            st.error("Test data not found. Please run the generation script first.")
+    # Sample datasets from the sample data folder
+    sample_datasets = [
+        ("🌸 Iris", "Iris.csv"),
+        ("❤️ Heart", "heart.csv"),
+        ("🏦 Bank", "BankChurners.csv"),
+        ("🎮 Games", "vgsales.csv"),
+        ("📊 2017", "2017.csv")
+    ]
+    
+    cols = st.columns(5)
+    for idx, (name, filename) in enumerate(sample_datasets):
+        with cols[idx]:
+            if st.button(name, key=f"sample_{filename}", use_container_width=True):
+                try:
+                    sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample data", filename)
+                    df = pd.read_csv(sample_path)
+                    st.session_state['raw_data'] = df
+                    if 'working_df' in st.session_state:
+                        del st.session_state['working_df']
+                    if 'dataset_intro' in st.session_state:
+                        st.session_state['dataset_intro'] = None
+                    st.success(f"Loaded {filename}!")
+                    st.rerun()
+                except FileNotFoundError:
+                    st.error(f"File {filename} not found.")
 
     # --- COMMON DATA DISPLAY LOGIC ---
     if st.session_state.get('raw_data') is not None:
@@ -317,17 +384,15 @@ if page == "1. Upload Data":
             if 'dataset_intro' not in st.session_state:
                 st.session_state['dataset_intro'] = None
             
-            if st.button("Analyze Dataset with AI"):
+            if st.button("Analyze Dataset with AI", key="analyze_dataset_btn"):
                 with st.spinner("AI is analyzing the dataset..."):
                     st.session_state['dataset_intro'] = ai_assistant.get_dataset_introduction(df)
+                st.rerun()
             
             if st.session_state['dataset_intro']:
                 st.markdown(st.session_state['dataset_intro'])
         
         utils.display_metadata(df)
-        
-        with st.expander("View Raw Data Preview", expanded=True):
-            st.dataframe(df.head())
 
 # 2. ISSUE DETECTION
 elif page == "2. Issue Detection":
