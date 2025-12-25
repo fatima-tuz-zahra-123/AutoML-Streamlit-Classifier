@@ -81,6 +81,6 @@ def run_eda(df):
         if st.button("Generate 3D Plot"):
             import plotly.express as px
             fig = px.scatter_3d(df.sample(min(1000, len(df))), x=x_col, y=y_col, z=z_col, color=color_col)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Need at least 3 numerical columns for 3D scatter plot.")

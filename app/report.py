@@ -165,14 +165,14 @@ def generate_report(raw_df, clean_df, results_df, best_model_data, preprocessing
         st.markdown("#### 3. Key Drivers (Feature Importance)")
         if top_features:
             fi_df = pd.DataFrame(top_features, columns=['Feature', 'Importance Score'])
-            st.dataframe(fi_df, width='stretch')
+            st.dataframe(fi_df, use_container_width=True)
         else:
             st.info("Feature importance not available for this model type.")
         st.markdown("---")
         
         # 5. Model Performance
         st.markdown("#### 4. Model Performance Leaderboard")
-        st.dataframe(results_df.style.highlight_max(axis=0, subset=['Accuracy', 'F1 Score'], color='#e6f3ff'), width='stretch')
+        st.dataframe(results_df.style.highlight_max(axis=0, subset=['Accuracy', 'F1 Score'], color='#e6f3ff'), use_container_width=True)
         
         # Best model highlight
         best_model_row = results_df.loc[results_df['F1 Score'].idxmax()]

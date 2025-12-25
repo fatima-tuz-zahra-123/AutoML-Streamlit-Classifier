@@ -284,7 +284,7 @@ if not st.session_state['chat_open']:
         <p style="font-size: 0.8rem; color: #2962FF;"><i>Activate AI Assistant</i></p>
     </div>
     """, unsafe_allow_html=True)
-    if st.sidebar.button("Start", key="wake_btn", width='stretch', on_click=toggle_chat):
+    if st.sidebar.button("Start", key="wake_btn", use_container_width=True, on_click=toggle_chat):
         pass
 
 else:
@@ -298,7 +298,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
     
-    if st.sidebar.button("Close Chat", key="close_btn", width='stretch', on_click=toggle_chat):
+    if st.sidebar.button("Close Chat", key="close_btn", use_container_width=True, on_click=toggle_chat):
         pass
 
     # Chat Interface (Only visible when open)
@@ -360,7 +360,7 @@ if page == "1. Upload Data":
     cols = st.columns(5)
     for idx, (name, filename) in enumerate(sample_datasets):
         with cols[idx]:
-            if st.button(name, key=f"sample_{filename}", width='stretch'):
+            if st.button(name, key=f"sample_{filename}", use_container_width=True):
                 try:
                     sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample data", filename)
                     df = pd.read_csv(sample_path)

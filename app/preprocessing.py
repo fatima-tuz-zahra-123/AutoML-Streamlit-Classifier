@@ -152,9 +152,11 @@ def run_preprocessing(df):
     # Filter out numerical columns even if they have few unique values
     true_categorical = [c for c in categorical_cols if c != target_col]
     
+    features_to_label_encode = []
     if true_categorical:
         st.caption("Only string/categorical columns are shown below. Convert numeric columns to categorical first if needed.")
-        features_to_encode = st.multiselect("Select Categorical Features to One-Hot Encode", true_categorical)
+        features_to_label_encode = st.multiselect("Select Categorical Features to Label Encode", true_categorical)
+        features_to_encode = st.multiselect("Select Categorical Features to One-Hot Encode", [c for c in true_categorical if c not in features_to_label_encode])
     else:
         st.info("No categorical columns detected. All features appear to be numeric.")
         features_to_encode = []
@@ -167,6 +169,13 @@ def run_preprocessing(df):
             df_clean[target_col] = le.fit_transform(df_clean[target_col].astype(str))
             msg += f"Target '{target_col}' Label Encoded. "
         
+        # Label Encode selected features
+        if features_to_label_encode:
+            for col in features_to_label_encode:
+                le = LabelEncoder()
+                df_clean[col] = le.fit_transform(df_clean[col].astype(str))
+            msg += f"Label Encoded: {features_to_label_encode}. "
+
         # One-Hot Encode Features
         if features_to_encode:
             # Check for high cardinality
