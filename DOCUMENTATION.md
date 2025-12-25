@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **AutoML Streamlit Classifier** is a comprehensive, user-friendly web application designed to automate the Machine Learning pipeline. Built with Streamlit and powered by Google's Gemini AI, it guides users from raw data upload to model deployment, offering intelligent insights and robust visualization tools along the way.
+The **AutoML Streamlit Classifier** is a comprehensive, user-friendly web application designed to automate the Machine Learning pipeline. Built with Streamlit and powered by Llama Groq, it guides users from raw data upload to model deployment, offering intelligent insights and robust visualization tools along the way.
 
 ## Key Features
 
@@ -76,7 +76,7 @@ The **AutoML Streamlit Classifier** is a comprehensive, user-friendly web applic
 
 ## AI Integration
 
-- **Engine**: Google Gemini 2.0 Flash.
+- **Engine**: Llama Groq.
 - **Capabilities**:
   - Context-aware chat (knows the dataset shape, missing values, and best model).
   - Generates code-free explanations for complex ML concepts.
