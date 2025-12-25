@@ -8,9 +8,8 @@ def run_eda(df):
     Executes the Exploratory Data Analysis page logic.
     """
     st.subheader("1. Descriptive Statistics")
-    with st.expander("Show Summary Statistics", expanded=True):
-        st.write(df.describe())
-        st.caption("Shows Mean, Median, Std Dev, Min, and Max.")
+    st.write(df.describe())
+    st.caption("Shows Mean, Median, Std Dev, Min, and Max.")
 
     st.markdown("---")
     
@@ -82,6 +81,6 @@ def run_eda(df):
         if st.button("Generate 3D Plot"):
             import plotly.express as px
             fig = px.scatter_3d(df.sample(min(1000, len(df))), x=x_col, y=y_col, z=z_col, color=color_col)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     else:
         st.info("Need at least 3 numerical columns for 3D scatter plot.")

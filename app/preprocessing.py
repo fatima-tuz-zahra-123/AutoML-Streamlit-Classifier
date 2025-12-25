@@ -37,26 +37,25 @@ def run_preprocessing(df):
     
     # --- AI SUGGESTIONS ---
     if 'groq_api_key' in st.session_state and st.session_state['groq_api_key']:
-        with st.expander("🤖 AI Preprocessing Suggestions", expanded=False):
-            if st.button("Get AI Suggestions"):
-                with st.spinner("Analyzing data for preprocessing suggestions..."):
-                    import ai_assistant
-                    suggestions = ai_assistant.get_preprocessing_suggestions(df_clean)
-                    st.markdown(suggestions)
+        if st.button("🤖 Get AI Preprocessing Suggestions"):
+            with st.spinner("Analyzing data for preprocessing suggestions..."):
+                import ai_assistant
+                suggestions = ai_assistant.get_preprocessing_suggestions(df_clean)
+                st.markdown(suggestions)
     
     # --- CURRENT DATA SCHEMA VIEW ---
-    with st.expander("🔍 View Current Data Schema (Columns & Types)", expanded=False):
+    if st.checkbox("🔍 View Current Data Schema (Columns & Types)"):
         st.write(f"**Shape:** {df_clean.shape[0]} rows, {df_clean.shape[1]} columns")
         st.dataframe(pd.DataFrame({
             'Column': df_clean.columns,
             'Type': df_clean.dtypes.astype(str)
-        }).reset_index(drop=True), use_container_width=True)
+        }).reset_index(drop=True))
     
     # --- COLUMN RENAMING (New Feature) ---
     st.subheader("0. Column Analysis & Renaming")
     st.caption("Review and rename columns to make them more understandable before further processing.")
     
-    with st.expander("📝 Rename Columns", expanded=False):
+    if st.checkbox("📝 Rename Columns"):
         st.info("Rename columns with confusing names (e.g., abbreviations, codes) to clearer descriptions.")
         
         # Show current columns with their basic stats
@@ -131,7 +130,7 @@ def run_preprocessing(df):
     st.subheader("2. Feature Encoding")
     
     # Allow user to convert numeric columns to categorical if needed
-    with st.expander("Advanced: Convert Numeric to Categorical"):
+    if st.checkbox("Advanced: Convert Numeric to Categorical"):
         all_cols = df_clean.columns.tolist()
         cols_to_convert = st.multiselect("Select numeric columns to treat as categorical (e.g. Year, ZipCode)", all_cols)
         if st.button("Convert Selected to String"):
@@ -239,7 +238,7 @@ def run_preprocessing(df):
     st.subheader("5. Finalize Preprocessing")
     st.caption("Once you are happy with the changes above, click below to save this dataset for Model Training.")
     
-    with st.expander("Preview Processed Data"):
+    if st.checkbox("Preview Processed Data"):
         st.dataframe(df_clean.head())
 
     if st.button("Save & Proceed to Training"):

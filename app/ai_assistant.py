@@ -6,6 +6,7 @@ import os
 import time
 import re
 from datetime import datetime
+import io
 
 class RateLimitError(Exception):
     pass
@@ -99,6 +100,56 @@ def clear_cache():
     st.cache_data.clear()
     log_to_ui("Cache cleared manually.")
 
+def get_eda_insights(df):
+    """Generates EDA insights using the AI by sending a summary instead of the full DataFrame."""
+    try:
+        # Check if Groq is configured
+        api_key = st.session_state.get('groq_api_key')
+        if not api_key:
+            return "Please configure Groq API Key for AI-powered insights."
+
+        # Limit data to avoid "Request Entity Too Large" error
+        # Only use first 20 columns max
+        df_limited = df.iloc[:, :20] if len(df.columns) > 20 else df
+
+        # Create a string buffer to capture df.info() output
+        buffer = io.StringIO()
+        df_limited.info(buf=buffer)
+        info_str = buffer.getvalue()
+
+        persona = get_persona_instruction()
+
+        prompt = f"""
+        {persona}
+        
+        You are an expert data analyst. Based on the following data summary, provide key exploratory data analysis (EDA) insights.
+        Focus on interesting patterns, potential data quality issues for a classification model, and relationships between variables.
+
+        Data Head (first 5 rows, first 20 columns):
+        {df_limited.head().to_string()}
+
+        Descriptive Statistics:
+        {df_limited.describe(include='all').to_string()}
+
+        Column Info (Data Types & Non-Null Counts):
+        {info_str}
+
+        Provide a bulleted list of your top 5-7 insights. Keep the language simple and clear.
+        Do not use emojis or markdown headers.
+        """
+        log_to_ui("Requesting EDA Insights (Checking Cache...)")
+        try:
+            return _cached_ai_call_v2(prompt, api_key)
+        except RateLimitError as e:
+            return str(e)
+        except Exception as e:
+            log_to_ui(f"An unexpected error occurred in get_eda_insights: {e}")
+            return f"An unexpected error occurred while generating insights: {e}"
+
+    except Exception as e:
+        log_to_ui(f"Error preparing data for EDA insights: {e}")
+        return f"Error preparing data for AI analysis: {e}"
+
 def get_dataset_introduction(df):
     """
     Generates a comprehensive introductory explanation of the dataset.
@@ -114,10 +165,14 @@ def get_dataset_introduction(df):
     # Check if Groq is configured
     api_key = st.session_state.get('groq_api_key')
     if api_key:
+        # Limit data to avoid "Request Entity Too Large" error
+        # Only use first 20 columns max for the sample
+        df_limited = df.iloc[:, :20] if len(df.columns) > 20 else df
+        
         # Create a summary for the AI
-        summary = df.head().to_string()
-        dtypes = df.dtypes.to_string()
-        stats = df.describe().to_string()
+        summary = df_limited.head().to_string()
+        dtypes = df_limited.dtypes.to_string()
+        stats = df_limited.describe().to_string()
         
         persona = get_persona_instruction()
         
@@ -133,10 +188,10 @@ def get_dataset_introduction(df):
         - Categorical columns ({len(cat_cols)}): {', '.join(cat_cols[:10])}{'...' if len(cat_cols) > 10 else ''}
         - Missing values: {missing_total} total ({missing_pct:.1f}% of data)
         
-        Columns & Types:
+        Columns & Types (first 20):
         {dtypes}
         
-        First 5 rows (sample):
+        First 5 rows (sample, first 20 columns):
         {summary}
         
         Descriptive Statistics:
@@ -234,8 +289,14 @@ def interpret_eda(df):
     # Check if Groq is configured
     api_key = st.session_state.get('groq_api_key')
     if api_key:
-        summary = df.describe().to_string()
-        corr = df.select_dtypes(include=['number']).corr().to_string()
+        # Limit the data sent to avoid "Request Entity Too Large" error
+        # Only use first 20 columns max for summary
+        numeric_df = df.select_dtypes(include=['number'])
+        if len(numeric_df.columns) > 20:
+            numeric_df = numeric_df.iloc[:, :20]
+        
+        summary = numeric_df.describe().to_string()
+        corr = numeric_df.corr().round(2).to_string()
         
         persona = get_persona_instruction()
         
@@ -243,7 +304,7 @@ def interpret_eda(df):
         {persona}
         Analyze these statistics and correlations from a dataset.
         
-        Statistics:
+        Statistics (first 20 numeric columns):
         {summary}
         
         Correlations:
@@ -294,15 +355,19 @@ def get_preprocessing_suggestions(df):
     if not api_key:
         return "Please configure Groq API Key for suggestions."
 
-    summary = df.describe().to_string()
-    missing = df.isnull().sum().to_string()
-    dtypes = df.dtypes.to_string()
+    # Limit data to avoid "Request Entity Too Large" error
+    # Only use first 30 columns max
+    df_limited = df.iloc[:, :30] if len(df.columns) > 30 else df
+    
+    summary = df_limited.describe().to_string()
+    missing = df_limited.isnull().sum().to_string()
+    dtypes = df_limited.dtypes.to_string()
     
     prompt = f"""
     {get_persona_instruction()}
     Analyze this dataset summary and suggest preprocessing steps.
     
-    Data Types:
+    Data Types (first 30 columns):
     {dtypes}
     
     Missing Values:

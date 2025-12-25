@@ -284,7 +284,7 @@ if not st.session_state['chat_open']:
         <p style="font-size: 0.8rem; color: #2962FF;"><i>Activate AI Assistant</i></p>
     </div>
     """, unsafe_allow_html=True)
-    if st.sidebar.button("Start", key="wake_btn", use_container_width=True, on_click=toggle_chat):
+    if st.sidebar.button("Start", key="wake_btn", width='stretch', on_click=toggle_chat):
         pass
 
 else:
@@ -298,7 +298,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
     
-    if st.sidebar.button("Close Chat", key="close_btn", use_container_width=True, on_click=toggle_chat):
+    if st.sidebar.button("Close Chat", key="close_btn", width='stretch', on_click=toggle_chat):
         pass
 
     # Chat Interface (Only visible when open)
@@ -360,7 +360,7 @@ if page == "1. Upload Data":
     cols = st.columns(5)
     for idx, (name, filename) in enumerate(sample_datasets):
         with cols[idx]:
-            if st.button(name, key=f"sample_{filename}", use_container_width=True):
+            if st.button(name, key=f"sample_{filename}", width='stretch'):
                 try:
                     sample_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample data", filename)
                     df = pd.read_csv(sample_path)
@@ -378,19 +378,14 @@ if page == "1. Upload Data":
     if st.session_state.get('raw_data') is not None:
         df = st.session_state['raw_data']
         
-        # AI Introduction
         st.markdown("### Dataset Overview")
-        with st.expander("See Dataset Breakdown (AI Analysis)"):
-            if 'dataset_intro' not in st.session_state:
-                st.session_state['dataset_intro'] = None
-            
-            if st.button("Analyze Dataset with AI", key="analyze_dataset_btn"):
+        
+        # Generate AI introduction if not already done
+        if 'dataset_intro' not in st.session_state or st.session_state['dataset_intro'] is None:
+            if st.button("🤖 Analyze Dataset with AI", key="analyze_dataset_btn"):
                 with st.spinner("AI is analyzing the dataset..."):
                     st.session_state['dataset_intro'] = ai_assistant.get_dataset_introduction(df)
                 st.rerun()
-            
-            if st.session_state['dataset_intro']:
-                st.markdown(st.session_state['dataset_intro'])
         
         utils.display_metadata(df)
 
@@ -433,9 +428,10 @@ elif page == "4. EDA":
         with st.spinner("AI is looking for patterns..."):
             insights = ai_assistant.interpret_eda(st.session_state['clean_data'])
         if insights:
-            with st.expander("🤖 AI Insights for EDA", expanded=True):
-                for i in insights:
-                    st.write(i)
+            st.subheader("🤖 AI Insights for EDA")
+            for i in insights:
+                st.write(i)
+            st.markdown("---")
                     
         eda.run_eda(st.session_state['clean_data'])
     else:

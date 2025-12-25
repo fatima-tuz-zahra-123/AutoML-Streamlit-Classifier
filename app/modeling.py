@@ -25,12 +25,11 @@ def train_models(df):
     
     # --- AI SUGGESTIONS ---
     if 'groq_api_key' in st.session_state and st.session_state['groq_api_key']:
-        with st.expander("🤖 AI Model Training Suggestions", expanded=False):
-            if st.button("Get AI Model Suggestions"):
-                with st.spinner("Analyzing data for model suggestions..."):
-                    import ai_assistant
-                    suggestions = ai_assistant.get_modeling_suggestions(df, target_col)
-                    st.markdown(suggestions)
+        if st.button("🤖 Get AI Model Training Suggestions"):
+            with st.spinner("Analyzing data for model suggestions..."):
+                import ai_assistant
+                suggestions = ai_assistant.get_modeling_suggestions(df, target_col)
+                st.markdown(suggestions)
 
     # --- FR-17: Data Splitting ---
     test_size = st.slider("Test Set Size", 0.1, 0.5, 0.2, 0.05)
